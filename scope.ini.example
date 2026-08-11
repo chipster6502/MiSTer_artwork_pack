@@ -1,0 +1,70 @@
+; MiSTer Boxart Pack builder - scope and pack settings.
+;
+; Credentials are NOT read from this file. Export before running:
+;   export SS_DEVID=... SS_DEVPASSWORD=... SS_SSID=... SS_SSPASSWORD=...
+
+[screenscraper]
+; must match an application name registered with your ScreenScraper dev
+; account; a wrong value degrades to anonymous access instead of failing
+softname = CHANGE_ME
+; region preference chain for artwork and display names
+regions = wor,us,eu,jp
+; 'all' publishes every synopsis language SS provides; or list them: en,es,fr
+langs = all
+; seconds each worker waits between its own calls
+delay = 0.8
+; concurrent requests; must not exceed the account's maxthreads (see any
+; reply's ssuser block)
+threads = 2
+
+[pack]
+; fill chain resolved at build time: the first style found per game wins, so
+; each game ends up as a single <key>.jpg on the SD card
+style_recipe = box-2D>mixrbv2
+; short label used in db filenames: snes_box2d.json.zip
+style_label = box2d
+; SS renders the mix composite even with no art, producing an identical blank
+; frame; any image whose bytes repeat this many times is discarded
+placeholder_min = 3
+; normalization: baseline JPEG, longest side capped
+quality = 80
+max_px = 768
+; branch holding out/media contents; no trailing slash
+url_base = https://raw.githubusercontent.com/CHANGE_ME/MiSTer_boxart_pack/media
+; db_id becomes <prefix><system-lowercase>
+db_id_prefix = CHANGE_ME/boxartdb-
+
+; ---------------------------------------------------------------------------
+; Systems in scope. The section suffix is the MiSTer games/ folder name and
+; becomes docs/<System>/Boxart/ on the SD card, so case matters.
+;
+; source kinds:
+;   dat:<file>    No-Intro/Redump DAT, P/C XML preferred (name + crc + size)
+;   mra:<folder>  folder with .mra files (arcade), uses <setname>
+;   list:<file>   plain text, one key per line
+;
+; Check ss_id against your account first:  python build_pack.py systems
+; ---------------------------------------------------------------------------
+
+[system:SNES]
+ss_id = 4
+kind = console
+source = dat:dats/snes.dat
+
+[system:Genesis]
+ss_id = 1
+kind = console
+source = dat:dats/genesis.dat
+
+[system:Arcade]
+ss_id = 75
+kind = arcade
+source = mra:mra
+; source = list:lists/arcade_smoke.txt
+;
+; jeuInfos falls back to a global name search, so a generic romset name can
+; resolve elsewhere. Replies outside the family of ss_id are rejected and
+; logged as .miss. Some non-arcade categories hang off Mame and are rejected
+; by id even though they ARE children (default: 52 Game & Watch, 168 non Jeu).
+; reject_systems = 52,168
+; accept_systems =
