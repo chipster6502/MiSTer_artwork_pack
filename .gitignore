@@ -1,0 +1,15 @@
+# builder state and outputs: these hold ScreenScraper replies and assets
+work/
+out/
+dats/
+lists/
+__pycache__/
+*.pyc
+
+# local configuration: copy scope.ini.example and edit
+scope.ini
+
+# No-Intro DAT downloads: third-party content, not redistributed
+No-Intro/
+No-Intro*.zip
+index.txt
