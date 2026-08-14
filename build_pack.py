@@ -302,6 +302,30 @@ def load_entries(source, limit=0):
                 "release": game.find("release") is not None,
             })
 
+    elif kind == "mame":
+        if not path.is_file():
+            die(f"MAME listxml not found: {path}\n"
+                "  Download mameXXXXlx.zip from "
+                "https://github.com/mamedev/mame/releases and unzip it here.")
+        # 300+ MB: stream it. Keep playable coin-op machines only; devices,
+        # BIOS, mechanical cabinets and the MESS consoles/computers (no coin
+        # slot) are not arcade games.
+        for _, el in ET.iterparse(path, events=("end",)):
+            if el.tag != "machine":
+                continue
+            name = el.get("name", "")
+            playable = (el.get("isdevice") != "yes"
+                        and el.get("isbios") != "yes"
+                        and el.get("ismechanical") != "yes"
+                        and el.get("runnable", "yes") == "yes")
+            inp = el.find("input")
+            if name and playable and inp is not None \
+                    and inp.get("coins") is not None:
+                entries.append({"key": name, "romnom": name + ".zip",
+                                "crc": "", "size": "",
+                                "cloneof": (el.get("cloneof") or "").strip()})
+            el.clear()
+
     elif kind == "mra":
         if not path.is_dir():
             die(f"MRA folder not found: {path}")
@@ -388,6 +412,24 @@ def elect_key(entry, regions):
             region_score(entry["key"], regions),
             0 if entry.get("release") else 1,
             len(entry["key"]), entry["key"])
+
+
+def cluster_mame_entries(entries):
+    """Group MAME sets under their parent. Returns (parents, members).
+
+    Unlike No-Intro there is nothing to elect: MAME defines the parent as
+    the reference set, so it is queried and every clone maps to its key in
+    the index. An orphan clone (parent filtered out) becomes its own group.
+    """
+    by_name = {e["key"]: e for e in entries}
+    parents, members = [], []
+    for e in entries:
+        parent = e["cloneof"] if e["cloneof"] in by_name else ""
+        if not parent:
+            parents.append(e)
+        members.append((e["key"], "", "", e["cloneof"]
+                        if e["cloneof"] in by_name else e["key"]))
+    return parents, members
 
 
 def cluster_dat_entries(entries, regions):
@@ -541,6 +583,10 @@ def stage_identify(scope, creds, only_system=None, limit=0, retry_miss=False):
             entries, members = cluster_dat_entries(entries, scope.regions)
             log(f"[identify] {system}: {len(members)} dumps clustered into "
                 f"{len(entries)} games")
+        elif cfg["source"].startswith("mame:"):
+            entries, members = cluster_mame_entries(entries)
+            log(f"[identify] {system}: {len(members)} sets clustered into "
+                f"{len(entries)} parents")
         else:
             members = [(e["key"], e["crc"], e["size"], e["key"])
                        for e in entries]
