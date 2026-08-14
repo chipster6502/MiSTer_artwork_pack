@@ -13,3 +13,8 @@ scope.ini
 No-Intro/
 No-Intro*.zip
 index.txt
+
+*.log
+mame.xml
+mamelx.zip
+mra/
