@@ -845,7 +845,7 @@ def stage_assemble(scope, only_system=None, prune=False):
         meta_dir = Path("work/meta") / system
         if not meta_dir.is_dir():
             continue
-        out_dir = Path("out/media/docs") / system / "Boxart"
+        out_dir = Path("out/media/docs") / system / "Artwork"
         out_dir.mkdir(parents=True, exist_ok=True)
 
         # work/meta accumulates across runs: keys no longer in _members.tsv
@@ -999,14 +999,14 @@ def stage_package(scope, only_system=None):
     for system in scope.systems:
         if only_system and system != only_system:
             continue
-        media_dir = Path("out/media/docs") / system / "Boxart"
+        media_dir = Path("out/media/docs") / system / "Artwork"
         if not media_dir.is_dir():
             continue
-        install_root = Path("docs") / system / "Boxart"
+        install_root = Path("docs") / system / "Artwork"
 
         tag_dictionary, tag_ids = {}, []
-        for name in ("docs", "boxart", system.lower(),
-                     f"{system.lower()}boxart"):
+        for name in ("docs", "artwork", system.lower(),
+                     f"{system.lower()}artwork"):
             if name not in tag_dictionary:
                 tag_dictionary[name] = len(tag_dictionary)
             tag_ids.append(tag_dictionary[name])
@@ -1027,7 +1027,7 @@ def stage_package(scope, only_system=None):
         folders = {
             "docs": {"path": "pext", "tags": docs_tag},
             f"docs/{system}": {"path": "pext", "tags": system_tags},
-            f"docs/{system}/Boxart": {"path": "pext", "tags": system_tags},
+            f"docs/{system}/Artwork": {"path": "pext", "tags": system_tags},
         }
 
         db_id = scope.db_id_prefix + system.lower()

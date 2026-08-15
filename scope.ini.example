@@ -36,7 +36,7 @@ db_id_prefix = CHANGE_ME/boxartdb-
 
 ; ---------------------------------------------------------------------------
 ; Systems in scope. The section suffix is the MiSTer games/ folder name and
-; becomes docs/<System>/Boxart/ on the SD card, so case matters.
+; becomes docs/<System>/Artwork/ on the SD card, so case matters.
 ;
 ; source kinds:
 ;   dat:<file>    No-Intro/Redump DAT, P/C XML preferred (name + crc + size)
