@@ -113,6 +113,11 @@ class Scope:
                 "ss_id": cp[section].get("ss_id", "").strip(),
                 "kind": cp[section].get("kind", "console").strip(),
                 "source": cp[section].get("source", "").strip(),
+                # Repo that hosts this system's media. Identity
+                # (db_id) stays per-system, so regrouping later only
+                # changes base_files_url and breaks no downloader.ini.
+                "group": cp[section].get("group", "").strip()
+                         or name.lower(),
                 # extra ids accepted besides the family of ss_id
                 "accept": tuple(x.strip() for x in accept.split(",") if x.strip()),
                 "reject": tuple(x.strip() for x in reject.split(",") if x.strip()),
@@ -835,7 +840,9 @@ def read_members(meta_dir):
 def stage_assemble(scope, only_system=None, prune=False):
     from PIL import Image
 
-    manifest_path = Path("out/manifest.csv")
+    # Per style: rows are keyed by (system, key), so a second style
+    # would otherwise overwrite the first one's hashes in place.
+    manifest_path = Path(f"out/manifest-{scope.style_label}.csv")
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
     manifest = load_manifest(manifest_path, MANIFEST_FIELDS)
 
@@ -845,7 +852,8 @@ def stage_assemble(scope, only_system=None, prune=False):
         meta_dir = Path("work/meta") / system
         if not meta_dir.is_dir():
             continue
-        out_dir = Path("out/media/docs") / system / "Artwork"
+        out_dir = (Path(f"out/media-{scope.style_label}/docs")
+                   / system / "Artwork")
         out_dir.mkdir(parents=True, exist_ok=True)
 
         # work/meta accumulates across runs: keys no longer in _members.tsv
@@ -992,6 +1000,12 @@ def stage_package(scope, only_system=None):
     let a user filter by system from downloader.ini."""
     if not scope.url_base or not scope.db_id_prefix:
         die("scope.ini: [pack] url_base and db_id_prefix are required for package")
+    # A url_base left over from single-repo hosting would publish a
+    # base_files_url pointing at the wrong repo, and nothing would
+    # fail until someone tried to install.
+    for token in ("{group}", "{style}"):
+        if token not in scope.url_base:
+            die(f"scope.ini: [pack] url_base must contain {token}")
     db_dir = Path("out/db")
     db_dir.mkdir(parents=True, exist_ok=True)
     snippets = []
@@ -999,7 +1013,8 @@ def stage_package(scope, only_system=None):
     for system in scope.systems:
         if only_system and system != only_system:
             continue
-        media_dir = Path("out/media/docs") / system / "Artwork"
+        media_dir = (Path(f"out/media-{scope.style_label}/docs")
+                     / system / "Artwork")
         if not media_dir.is_dir():
             continue
         install_root = Path("docs") / system / "Artwork"
@@ -1034,7 +1049,9 @@ def stage_package(scope, only_system=None):
         db = {
             "db_id": db_id,
             "timestamp": int(time.time()),
-            "base_files_url": scope.url_base + "/",
+            "base_files_url": scope.url_base.format(
+                group=scope.systems[system]["group"],
+                style=scope.style_label) + "/",
             "files": files,
             "folders": folders,
             "tag_dictionary": tag_dictionary,

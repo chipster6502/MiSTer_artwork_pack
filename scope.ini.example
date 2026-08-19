@@ -30,9 +30,9 @@ placeholder_min = 3
 quality = 80
 max_px = 768
 ; branch holding out/media contents; no trailing slash
-url_base = https://raw.githubusercontent.com/CHANGE_ME/MiSTer_boxart_pack/media
+url_base = https://raw.githubusercontent.com/CHANGE_ME/artworkdb-{group}/media-{style}
 ; db_id becomes <prefix><system-lowercase>
-db_id_prefix = CHANGE_ME/boxartdb-
+db_id_prefix = CHANGE_ME/artworkdb-
 
 ; ---------------------------------------------------------------------------
 ; Systems in scope. The section suffix is the MiSTer games/ folder name and
@@ -50,16 +50,19 @@ db_id_prefix = CHANGE_ME/boxartdb-
 ss_id = 4
 kind = console
 source = dat:dats/snes.dat
+group = nintendo-consoles
 
 [system:Genesis]
 ss_id = 1
 kind = console
 source = dat:dats/genesis.dat
+group = sega
 
 [system:Arcade]
 ss_id = 75
 kind = arcade
 source = mra:mra
+group = arcade
 ; source = list:lists/arcade_smoke.txt
 ;
 ; jeuInfos falls back to a global name search, so a generic romset name can
