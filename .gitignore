@@ -8,6 +8,7 @@ __pycache__/
 
 # local configuration: copy scope.ini.example and edit
 scope.ini
+scope.ini.*.bak
 
 # No-Intro DAT downloads: third-party content, not redistributed
 No-Intro/
