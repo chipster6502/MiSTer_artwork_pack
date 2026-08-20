@@ -71,3 +71,12 @@ group = arcade
 ; by id even though they ARE children (default: 52 Game & Watch, 168 non Jeu).
 ; reject_systems = 52,168
 ; accept_systems =
+
+[style:box2d]
+recipe = box-2D>mixrbv2
+
+[style:box3d]
+recipe = box-3D>mixrbv2
+
+[style:mixrbv2]
+recipe = mixrbv2

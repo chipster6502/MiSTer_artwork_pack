@@ -74,7 +74,7 @@ DEFAULT_REJECT_SYSTEMS = "52,168"
 
 
 class Scope:
-    def __init__(self, path):
+    def __init__(self, path, style=None):
         cp = configparser.ConfigParser(inline_comment_prefixes=(";", "#"))
         if not Path(path).is_file():
             die(f"scope file not found: {path}")
@@ -92,9 +92,31 @@ class Scope:
         self.threads = max(1, int(ss.get("threads", "2")))
 
         pk = cp["pack"] if cp.has_section("pack") else {}
-        self.recipe = [s.strip() for s in pk.get("style_recipe", "box-2D>mixrbv2").split(">") if s.strip()]
-        self.style_label = pk.get("style_label", "").strip() or \
-            self.recipe[0].lower().replace("-", "").replace("_", "")
+
+        # Every style declared once, selected per run. Keeping the
+        # recipe out of the edited-in values means no file swapping
+        # between generations.
+        self.styles = {}
+        for section in cp.sections():
+            if not section.startswith("style:"):
+                continue
+            label = section.split(":", 1)[1].strip()
+            raw = cp[section].get("recipe", "").strip()
+            if not label or not raw:
+                die(f"scope.ini: [{section}] needs a recipe")
+            self.styles[label] = [s.strip() for s in raw.split(">")
+                                  if s.strip()]
+
+        if style:
+            if style not in self.styles:
+                known = ", ".join(sorted(self.styles)) or "none declared"
+                die(f"scope.ini: unknown style '{style}' ({known})")
+            self.style_label = style
+            self.recipe = self.styles[style]
+        else:
+            self.recipe = [s.strip() for s in pk.get("style_recipe", "box-2D>mixrbv2").split(">") if s.strip()]
+            self.style_label = pk.get("style_label", "").strip() or \
+                self.recipe[0].lower().replace("-", "").replace("_", "")
         self.quality = int(pk.get("quality", "80"))
         self.max_px = int(pk.get("max_px", "768"))
         self.placeholder_min = int(pk.get("placeholder_min", "3"))
@@ -1273,6 +1295,9 @@ def main():
     parser.add_argument("--scope", default="scope.ini")
     parser.add_argument("--system", default=None,
                         help="restrict to one [system:<Name>] section")
+    parser.add_argument("--style", default=None,
+                        help="use a [style:<label>] recipe instead of "
+                             "the [pack] defaults")
     parser.add_argument("--limit", type=int, default=0,
                         help="identify only the first N entries (smoke tests)")
     parser.add_argument("--prune", action="store_true",
@@ -1283,7 +1308,7 @@ def main():
                              "(use after editing overrides.tsv)")
     args = parser.parse_args()
 
-    scope = Scope(args.scope)
+    scope = Scope(args.scope, args.style)
     needs_net = args.stage in ("identify", "fetch", "all", "systems",
                                "resolve")
     # verify only reads public raw URLs, so it needs no credentials
