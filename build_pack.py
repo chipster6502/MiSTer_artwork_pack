@@ -100,6 +100,9 @@ class Scope:
         self.placeholder_min = int(pk.get("placeholder_min", "3"))
         self.url_base = pk.get("url_base", "").rstrip("/")
         self.db_id_prefix = pk.get("db_id_prefix", "").strip()
+        # Where the db branch is served from. Same {group}/{style}
+        # placeholders as url_base. Optional: only verify needs it.
+        self.db_url_base = pk.get("db_url_base", "").rstrip("/")
 
         self.systems = {}  # name -> dict(ss_id, kind, source)
         for section in cp.sections():
@@ -1079,13 +1082,18 @@ def stage_package(scope, only_system=None):
         log(f"[package] {system}: {len(files)} files, {total_mb:.1f} MB "
             f"-> db/{base}.json.zip ({zip_kb:.0f} KB, db_id={db_id}, "
             f"tags={','.join(tag_dictionary)})")
-        snippets.append((db_id, base))
+        snippets.append((db_id, base, scope.systems[system]["group"]))
 
     if snippets:
         log("\n--- downloader.ini sections (append on the MiSTer) ---")
-        for db_id, base in snippets:
+        for db_id, base, group in snippets:
+            if scope.db_url_base:
+                root = scope.db_url_base.format(
+                    group=group, style=scope.style_label)
+            else:
+                root = "<RAW-URL-OF-YOUR-REPO-DB-BRANCH>"
             log(f"[{db_id}]")
-            log(f"db_url = <RAW-URL-OF-YOUR-REPO-DB-BRANCH>/{base}.json.zip\n")
+            log(f"db_url = {root}/{base}.json.zip\n")
 
 
 def cmd_resolve(scope, creds, only_system=None, limit=0):
@@ -1167,6 +1175,92 @@ def cmd_systems(scope, creds):
         print(f"{sid:>5}  {info['name']}{suffix}")
 
 
+def stage_verify(scope, only_system=None, sample=12):
+    """Compare what is published against what was built locally."""
+    if not scope.db_url_base:
+        die("scope.ini: [pack] db_url_base is required for verify")
+
+    db_dir = Path("out/db")
+    media_root = Path(f"out/media-{scope.style_label}")
+    problems = 0
+
+    for system in scope.systems:
+        if only_system and system != only_system:
+            continue
+        base = f"{system.lower()}_{scope.style_label}"
+        local_zip = db_dir / f"{base}.json.zip"
+        if not local_zip.is_file():
+            log(f"[verify] {system}: no local {base}.json.zip, skipped")
+            continue
+
+        group = scope.systems[system]["group"]
+        root = scope.db_url_base.format(group=group,
+                                        style=scope.style_label)
+        url = f"{root}/{base}.json.zip"
+        try:
+            published = http_get(url, scope.softname)
+        except Exception as exc:
+            log(f"[verify] {system}: FAIL cannot fetch {url} ({exc})")
+            problems += 1
+            continue
+
+        local_bytes = local_zip.read_bytes()
+        if hashlib.md5(published).hexdigest() != \
+                hashlib.md5(local_bytes).hexdigest():
+            log(f"[verify] {system}: FAIL published db.json.zip differs "
+                "from local; republish it")
+            problems += 1
+            continue
+
+        # The db matches, so its own base_files_url and hashes are the
+        # ones clients will use. Sample the media it points at.
+        with zipfile.ZipFile(io.BytesIO(local_bytes)) as zf:
+            db = json.loads(zf.read(zf.namelist()[0]))
+        entries = sorted(db["files"].items())
+        if not entries:
+            log(f"[verify] {system}: db has no files")
+            problems += 1
+            continue
+        step = max(1, len(entries) // sample)
+        picks = entries[::step][:sample]
+
+        bad = 0
+        for rel, meta in picks:
+            local_file = media_root / rel
+            if not local_file.is_file():
+                log(f"[verify] {system}: missing locally {rel}")
+                bad += 1
+                continue
+            if hashlib.md5(local_file.read_bytes()).hexdigest() \
+                    != meta["hash"]:
+                log(f"[verify] {system}: local file does not match db "
+                    f"{rel}")
+                bad += 1
+                continue
+            media_url = db["base_files_url"] + quote(rel)
+            try:
+                blob = http_get(media_url, scope.softname)
+            except Exception as exc:
+                log(f"[verify] {system}: cannot fetch {rel} ({exc})")
+                bad += 1
+                continue
+            if hashlib.md5(blob).hexdigest() != meta["hash"]:
+                log(f"[verify] {system}: published media differs {rel}")
+                bad += 1
+
+        if bad:
+            log(f"[verify] {system}: FAIL {bad}/{len(picks)} sampled "
+                "files wrong")
+            problems += 1
+        else:
+            log(f"[verify] {system}: OK db.json.zip and {len(picks)} "
+                f"sampled files match ({len(entries)} in db)")
+
+    if problems:
+        die(f"verify: {problems} system(s) inconsistent")
+    log("[verify] all checked systems consistent")
+
+
 # ----------------------------------------------------------------------------
 # main
 # ----------------------------------------------------------------------------
@@ -1175,7 +1269,7 @@ def main():
     parser = argparse.ArgumentParser(description="MiSTer Boxart Pack builder")
     parser.add_argument("stage", choices=["identify", "fetch", "assemble",
                                           "package", "all", "systems",
-                                          "resolve"])
+                                          "resolve", "verify"])
     parser.add_argument("--scope", default="scope.ini")
     parser.add_argument("--system", default=None,
                         help="restrict to one [system:<Name>] section")
@@ -1192,10 +1286,14 @@ def main():
     scope = Scope(args.scope)
     needs_net = args.stage in ("identify", "fetch", "all", "systems",
                                "resolve")
+    # verify only reads public raw URLs, so it needs no credentials
     creds = credentials() if needs_net else None
 
     if args.stage == "systems":
         cmd_systems(scope, creds)
+        return
+    if args.stage == "verify":
+        stage_verify(scope, args.system)
         return
     if args.stage == "resolve":
         cmd_resolve(scope, creds, args.system, args.limit)
