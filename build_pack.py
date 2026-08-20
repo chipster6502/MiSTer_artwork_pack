@@ -898,7 +898,16 @@ def stage_assemble(scope, only_system=None, prune=False):
             else:
                 try:
                     with Image.open(src) as img:
-                        img = img.convert("RGB")
+                        # SS serves box-3D as RGBA PNG over a black
+                        # backdrop. Dropping alpha without compositing
+                        # lets Pillow fill it white, framing every box.
+                        if img.mode in ("RGBA", "LA", "P"):
+                            img = img.convert("RGBA")
+                            flat = Image.new("RGB", img.size, (0, 0, 0))
+                            flat.paste(img, mask=img.split()[-1])
+                            img = flat
+                        else:
+                            img = img.convert("RGB")
                         w, h = img.size
                         if max(w, h) > scope.max_px:
                             ratio = scope.max_px / max(w, h)
