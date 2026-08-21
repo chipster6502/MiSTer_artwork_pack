@@ -38,7 +38,7 @@ Three, mutually exclusive. A user installs one; consumers read whatever is
 there and never need to know which.
 
 | Style | Content | Example |
-|---|---|---|
+|---|---|:---:|
 | `box2d` | flat box scan | <img src="https://raw.githubusercontent.com/chipster6502/artworkdb-sega/media-box2d/docs/Genesis/Artwork/Sonic%20The%20Hedgehog%20%28USA%2C%20Europe%29.jpg" height="200"> |
 | `box3d` | 3D box render | <img src="https://raw.githubusercontent.com/chipster6502/artworkdb-sega/media-box3d/docs/Genesis/Artwork/Sonic%20The%20Hedgehog%20%28USA%2C%20Europe%29.jpg" height="200"> |
 | `mixrbv2` | screenshot inside a TV frame | <img src="https://raw.githubusercontent.com/chipster6502/artworkdb-sega/media-mixrbv2/docs/Genesis/Artwork/Sonic%20The%20Hedgehog%20%28USA%2C%20Europe%29.jpg" height="200"> |
