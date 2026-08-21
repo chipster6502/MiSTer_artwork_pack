@@ -77,6 +77,7 @@ recipe = box-2D>mixrbv2
 
 [style:box3d]
 recipe = box-3D>mixrbv2
+quality = 95
 
 [style:mixrbv2]
 recipe = mixrbv2

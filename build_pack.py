@@ -97,6 +97,7 @@ class Scope:
         # recipe out of the edited-in values means no file swapping
         # between generations.
         self.styles = {}
+        self.style_opts = {}
         for section in cp.sections():
             if not section.startswith("style:"):
                 continue
@@ -106,6 +107,7 @@ class Scope:
                 die(f"scope.ini: [{section}] needs a recipe")
             self.styles[label] = [s.strip() for s in raw.split(">")
                                   if s.strip()]
+            self.style_opts[label] = dict(cp[section])
 
         if style:
             if style not in self.styles:
@@ -117,7 +119,10 @@ class Scope:
             self.recipe = [s.strip() for s in pk.get("style_recipe", "box-2D>mixrbv2").split(">") if s.strip()]
             self.style_label = pk.get("style_label", "").strip() or \
                 self.recipe[0].lower().replace("-", "").replace("_", "")
-        self.quality = int(pk.get("quality", "80"))
+        # A style may override the pack default: how a style
+        # compresses varies enough that one number does not fit all.
+        opts = self.style_opts.get(self.style_label, {})
+        self.quality = int(opts.get("quality", pk.get("quality", "80")))
         self.max_px = int(pk.get("max_px", "768"))
         self.placeholder_min = int(pk.get("placeholder_min", "3"))
         self.url_base = pk.get("url_base", "").rstrip("/")
