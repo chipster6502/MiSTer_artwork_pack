@@ -897,6 +897,7 @@ def stage_assemble(scope, only_system=None, prune=False):
                 f"image(s) detected, affecting {total} games")
         rows = []
         syn_rows = {}  # lang -> [(key, text)]
+        pack_rows = []  # (key, style, ss_system_id) for manifest.tsv
         made = skipped = stale = blanks = broken = 0
         for meta_path in sorted(meta_dir.glob("*.json")):
             key = meta_path.stem
@@ -964,6 +965,16 @@ def stage_assemble(scope, only_system=None, prune=False):
                 "md5": md5_file(target), "size": str(target.stat().st_size),
                 "width": str(width), "height": str(height),
             }
+            pack_rows.append((key, style_used, sys_id))
+
+        # shipped alongside the images: lets a consumer filter by style and
+        # tell which SS system each image actually came from, which is what
+        # makes cross-catalog fallback (GB/GBC, NES/FDS) deterministic
+        with open(out_dir / "manifest.tsv", "w", encoding="utf-8",
+                  newline="") as f:
+            f.write("#key\tstyle\tss_system_id\n")
+            for key, style_used, sys_id in sorted(pack_rows):
+                f.write(f"{key}\t{style_used}\t{sys_id}\n")
 
         info_path = out_dir / "gameinfo.tsv"
         with open(info_path, "w", encoding="utf-8", newline="") as f:
@@ -1015,7 +1026,8 @@ def stage_assemble(scope, only_system=None, prune=False):
         log(f"[assemble] {system}: {made} images written, {skipped} kept, "
             f"gameinfo.tsv with {len(rows)} rows, "
             f"synopsis in {len(syn_rows)} languages ({lang_list}), "
-            f"index.tsv with {indexed} variants"
+            f"index.tsv with {indexed} variants, "
+            f"manifest.tsv with {len(pack_rows)} rows"
             + (f", {stale} meta out of scope" if stale else "")
             + (f", {blanks} placeholder(s) discarded" if blanks else "")
             + (f", {broken} unreadable" if broken else ""))
