@@ -27,7 +27,7 @@ style_label = box2d
 ; frame; any image whose bytes repeat this many times is discarded
 placeholder_min = 3
 ; normalization: baseline JPEG, longest side capped
-quality = 80
+quality = 85
 max_px = 768
 ; branch holding out/media contents; no trailing slash
 url_base = https://raw.githubusercontent.com/CHANGE_ME/artworkdb-{group}/media-{style}
