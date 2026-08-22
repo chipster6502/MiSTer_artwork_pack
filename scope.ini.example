@@ -74,6 +74,12 @@ group = arcade
 ; reject_systems = 52,168
 ; accept_systems =
 
+[system:AtariLynx]
+ss_id = 28
+kind = console
+source = dat:dats/atarilynx.dat
+group = atari
+
 [style:box2d]
 recipe = box-2D>mixrbv2
 
