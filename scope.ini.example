@@ -63,7 +63,12 @@ group = sega
 [system:Arcade]
 ss_id = 75
 kind = arcade
-source = mra:mra
+; full catalog: MAME listxml (download mameXXXXlx.zip from
+; https://github.com/mamedev/mame/releases and unzip here)
+source = mame:mame.xml
+; installed .mra folder or a hand-written list also work:
+; source = mra:mra
+; source = list:lists/arcade_smoke.txt
 group = arcade
 ; source = list:lists/arcade_smoke.txt
 ;
