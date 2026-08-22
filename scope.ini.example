@@ -31,6 +31,8 @@ quality = 80
 max_px = 768
 ; branch holding out/media contents; no trailing slash
 url_base = https://raw.githubusercontent.com/CHANGE_ME/artworkdb-{group}/media-{style}
+; branch holding the db zips; same {group}/{style} placeholders. Required by verify.
+db_url_base = https://raw.githubusercontent.com/CHANGE_ME/artworkdb-{group}/db
 ; db_id becomes <prefix><system-lowercase>
 db_id_prefix = CHANGE_ME/artworkdb-
 
