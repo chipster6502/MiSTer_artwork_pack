@@ -303,7 +303,8 @@ def run_parallel(tasks, worker, threads, delay, label, total):
 # Unofficial / Non-Redump sets: SS does not catalog them, so they would only
 # burn quota and produce misses.
 UNOFFICIAL_MARKERS = ("(unl)", "(aftermarket)", "(pirate)", "(homebrew)",
-                      "(test program)", "(debug", "(bios)")
+                      "(test program)", "(program)", "(kiosk)",
+                      "(debug", "(bios)")
 
 
 def load_entries(source, limit=0):
