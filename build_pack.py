@@ -266,6 +266,7 @@ def run_parallel(tasks, worker, threads, delay, label, total):
     maxthreads. die() in a thread only kills that thread, so refusals are
     signalled through ABORT and re-raised by the caller."""
     done = {"n": 0}
+    failed = {"n": 0}
     results = []
 
     def wrapped(task):
@@ -275,6 +276,12 @@ def run_parallel(tasks, worker, threads, delay, label, total):
             outcome = worker(task)
         except SystemExit:
             ABORT.set()
+            return None
+        except Exception as exc:
+            # nothing cached, so the item stays in todo for the next run
+            with COUNTER_LOCK:
+                failed["n"] += 1
+            log(f"  ! {label} failed ({type(exc).__name__}: {exc})")
             return None
         if delay:
             time.sleep(delay)
@@ -293,6 +300,8 @@ def run_parallel(tasks, worker, threads, delay, label, total):
     if ABORT.is_set():
         die("ScreenScraper refused a request - stopping. "
             "Re-run later; every stage resumes where it left off.")
+    if failed["n"]:
+        log(f"  ! {failed['n']} transient failure(s); re-run to retry them")
     return [r for r in results if r is not None]
 
 
