@@ -85,6 +85,144 @@ kind = console
 source = dat:dats/atarilynx.dat
 group = atari
 
+[system:NES]
+ss_id = 3
+kind = console
+source = dat:dats/nes.dat
+group = nintendo-consoles
+
+[system:VirtualBoy]
+ss_id = 11
+kind = console
+source = dat:dats/virtualboy.dat
+group = nintendo-consoles
+
+[system:Satellaview]
+ss_id = 107
+kind = console
+source = dat:dats/satellaview.dat
+group = nintendo-consoles
+
+[system:N64]
+ss_id = 14
+kind = console
+source = dat:dats/n64.dat
+group = nintendo-consoles
+
+[system:GBA]
+ss_id = 12
+kind = console
+source = dat:dats/gba.dat
+group = nintendo-handhelds
+
+[system:SMS]
+ss_id = 2
+kind = console
+source = dat:dats/sms.dat
+group = sega
+
+[system:GameGear]
+ss_id = 21
+kind = console
+source = dat:dats/gamegear.dat
+group = sega
+
+[system:SG-1000]
+ss_id = 109
+kind = console
+source = dat:dats/sg1000.dat
+group = sega
+
+[system:S32X]
+ss_id = 19
+kind = console
+source = dat:dats/s32x.dat
+group = sega
+
+[system:Atari2600]
+ss_id = 26
+kind = console
+source = dat:dats/atari2600.dat
+group = atari
+
+[system:ATARI5200]
+ss_id = 40
+kind = console
+source = dat:dats/atari5200.dat
+group = atari
+
+[system:ATARI7800]
+ss_id = 41
+kind = console
+source = dat:dats/atari7800.dat
+group = atari
+
+[system:Jaguar]
+ss_id = 27
+kind = console
+source = dat:dats/jaguar.dat
+group = atari
+
+[system:TGFX16]
+ss_id = 31
+kind = console
+source = dat:dats/tgfx16.dat
+group = nec
+
+[system:SuperGrafx]
+ss_id = 105
+kind = console
+source = dat:dats/supergrafx.dat
+group = nec
+
+[system:NeoGeoPocket]
+ss_id = 25
+kind = console
+source = dat:dats/ngp.dat
+group = snk
+
+[system:NeoGeoPocket-Color]
+ss_id = 82
+kind = console
+source = dat:dats/ngpc.dat
+group = snk
+
+[system:WonderSwan]
+ss_id = 45
+kind = console
+source = dat:dats/wonderswan.dat
+group = misc
+
+[system:WonderSwanColor]
+ss_id = 46
+kind = console
+source = dat:dats/wsc.dat
+group = misc
+
+[system:Coleco]
+ss_id = 48
+kind = console
+source = dat:dats/coleco.dat
+group = misc
+
+[system:Intellivision]
+ss_id = 115
+kind = console
+source = dat:dats/intellivision.dat
+group = misc
+
+[system:VECTREX]
+ss_id = 102
+kind = console
+source = dat:dats/vectrex.dat
+group = misc
+
+[system:ODYSSEY2]
+ss_id = 104
+kind = console
+source = dat:dats/odyssey2.dat
+group = misc
+
 [style:box2d]
 recipe = box-2D>mixrbv2
 
