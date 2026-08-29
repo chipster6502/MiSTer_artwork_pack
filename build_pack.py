@@ -249,10 +249,33 @@ def redact_json(node):
     return node
 
 
+def json_after_noise(text):
+    """The jeu from a reply with junk prepended, or None when there is none.
+
+    Only useful when something precedes the JSON: a body that already starts
+    with '{' and failed to parse is broken, not merely dirty."""
+    start = text.find("{")
+    if start <= 0:
+        return None
+    try:
+        jeu = json.loads(text[start:])["response"]["jeu"]
+    except (ValueError, KeyError, TypeError):
+        return None
+    return jeu if isinstance(jeu, dict) and jeu.get("id") else None
+
+
 def check_quota_wall(body_text):
     """Abort only on a real refusal. Valid JSON without a game is an ordinary
     miss - the reply carries usage counters that mention quotas."""
     stripped = body_text.strip()
+    # A PHP notice can precede an otherwise valid reply. Judge the JSON that
+    # follows it, never the raw text: EVERY reply carries usage counters that
+    # mention quotas, so a raw substring scan of a dirty body reads as a wall
+    # and kills the run. This is what aborted a 1387-game Saturn batch.
+    if not stripped.startswith(("{", "[")):
+        brace = stripped.find("{")
+        if brace > 0 and any(m in stripped.lower() for m in PHP_NOTICE_MARKERS):
+            stripped = stripped[brace:]
     if stripped.startswith("{") or stripped.startswith("["):
         try:
             data = json.loads(stripped)
@@ -647,6 +670,13 @@ def query_game(scope, creds, system_id, entry):
         jeu = json.loads(text)["response"]["jeu"]
         assert jeu.get("id")
     except (ValueError, KeyError, AssertionError):
+        # SS sometimes prepends a PHP notice to an otherwise perfectly good
+        # reply -- it emits one while processing a corrupt image of its own --
+        # which breaks the parse even though the JSON that follows is intact.
+        # Salvage it rather than lose the game.
+        jeu = json_after_noise(text)
+        if jeu is not None:
+            return jeu, text
         return None, text
     return jeu, text
 
