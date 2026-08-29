@@ -223,6 +223,54 @@ kind = console
 source = dat:dats/odyssey2.dat
 group = misc
 
+[system:MegaCD]
+ss_id = 20
+kind = console
+source = dat:dats/megacd.dat
+group = sega
+
+[system:NeoGeo-CD]
+ss_id = 70
+kind = console
+source = dat:dats/neogeocd.dat
+group = snk
+
+[system:TGFX16-CD]
+ss_id = 114
+kind = console
+source = dat:dats/tgfx16cd.dat
+group = nec
+
+[system:Saturn]
+ss_id = 22
+kind = console
+source = dat:dats/saturn.dat
+group = sega
+
+[system:3DO]
+ss_id = 29
+kind = console
+source = dat:dats/3do.dat
+group = misc
+
+[system:CD-i]
+ss_id = 133
+kind = console
+source = dat:dats/cdi.dat
+group = misc
+
+[system:AmigaCD32]
+ss_id = 130
+kind = console
+source = dat:dats/amigacd32.dat
+group = misc
+
+[system:PSX]
+ss_id = 57
+kind = console
+source = dat:dats/psx.dat
+group = sony
+
 [style:box2d]
 recipe = box-2D>mixrbv2
 
