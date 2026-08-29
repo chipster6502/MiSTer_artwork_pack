@@ -442,6 +442,21 @@ def region_score(name, regions):
     return len(regions)
 
 
+def disc_number(name):
+    """Disc N as an integer; 0 when the dump carries no disc tag.
+
+    A multi-disc game has no dump that stands for the whole thing, so the
+    election must pick one -- and always the SAME one, or the artwork key
+    flips between discs depending on which happens to carry the shorter
+    subtitle. Before this existed 'Fahrenheit (USA) (Disc 2) (32X CD)' beat
+    '(Disc 1) (Key Disc) (Sega CD)' on the length tie-break alone, electing
+    the second disc of the game as its cover. A dump with no disc tag sorts
+    first: it is a single-disc release and already represents the game whole.
+    """
+    m = re.search(r"\(disc\s*(\d+)", name.lower())
+    return int(m.group(1)) if m else 0
+
+
 def variant_penalty(name):
     low = name.lower()
     return sum(weight
@@ -456,6 +471,7 @@ def elect_key(entry, regions):
     return (variant_penalty(entry["key"]),
             region_score(entry["key"], regions),
             0 if entry.get("release") else 1,
+            disc_number(entry["key"]),
             len(entry["key"]), entry["key"])
 
 
@@ -677,6 +693,12 @@ def stage_identify(scope, creds, only_system=None, limit=0, retry_miss=False):
                     f"while querying {query_id}", encoding="utf-8")
                 return "rejected"
 
+            if is_nongame(jeu):
+                marker.write_text("non-game: ScreenScraper resolved this to "
+                                  "its catch-all non-game entry",
+                                  encoding="utf-8")
+                return "nongame"
+
             out.write_text(
                 json.dumps(redact_json(jeu), ensure_ascii=False, indent=1),
                 encoding="utf-8")
@@ -687,9 +709,11 @@ def stage_identify(scope, creds, only_system=None, limit=0, retry_miss=False):
         hits = outcomes.count("hit")
         miss = outcomes.count("miss")
         rejected = outcomes.count("rejected")
+        nongame = outcomes.count("nongame")
 
         log(f"[identify] {system}: {hits} new, {miss} miss, "
-            f"{rejected} out-of-family, {done} already cached")
+            f"{rejected} out-of-family, {nongame} non-game, "
+            f"{done} already cached")
 
 
 # ----------------------------------------------------------------------------
@@ -823,6 +847,25 @@ MANIFEST_FIELDS = ["system", "key", "ss_id", "ss_system_id", "ss_system",
                    "style", "region", "md5", "size", "width", "height"]
 
 
+# ScreenScraper files everything that is not a game -- cleaning discs, store
+# demos, samplers, promo material -- under one catch-all entry whose name it
+# prefixes with this marker. Four MegaCD discs resolved to the very same id
+# (256921) in the wave-2 pilot, which would have downloaded one identical
+# non-image four times over. The placeholder detector would probably have
+# caught those four (its threshold is 3), but that is luck: two such discs in
+# a smaller system slip through, and disc-based sets are full of them -- PSX
+# especially. Rejecting by the marker is exact and needs no threshold.
+NONGAME_MARKER = "zzz(notgame)"
+
+
+def is_nongame(jeu):
+    """True when SS answered with its catch-all non-game entry."""
+    names = [n.get("text", "") for n in (jeu.get("noms") or [])
+             if isinstance(n, dict)]
+    names.append(jeu.get("nom", "") or "")
+    return any(n.lower().startswith(NONGAME_MARKER) for n in names if n)
+
+
 def ss_subsystem(jeu):
     """(id, name) of the system SS actually resolved the game to. Arcade is a
     parent plus dozens of manufacturer subsystems, so this differs from the
@@ -850,10 +893,31 @@ def load_manifest(path, fields):
     return rows
 
 
+def ss_game_id(meta_dir, key):
+    """The ScreenScraper game id behind a key, '' when unreadable."""
+    path = meta_dir / (key + ".json")
+    try:
+        return str(json.loads(path.read_text(encoding="utf-8")).get("id", ""))
+    except Exception:
+        return ""
+
+
 def find_placeholders(scope, system, threshold):
     """MD5s of empty templates. SS renders the mix composite even with no
     art, giving an identical blank frame to every such game; real artwork is
-    never byte-identical, so a repeated hash is a placeholder."""
+    never byte-identical, so a repeated hash is a placeholder.
+
+    'Different game' means a different ScreenScraper ENTRY, not a different
+    key. A game released under different titles per region -- Mansion of
+    Hidden Souls / Yumemi Yakata no Monogatari / Yumemi Mystery Mansion --
+    clusters into as many groups as it has titles, because norm_title() only
+    strips parentheses and cannot translate. All of them resolve to the same
+    SS entry and are legitimately served the same box, which the count alone
+    reads as a placeholder: nine real MegaCD covers were discarded that way
+    in the wave-2 pilot. Counting distinct SS ids instead keeps the original
+    premise intact -- a true placeholder is shared across genuinely different
+    entries -- while making regional retitles free."""
+    meta_dir = Path("work/meta") / system
     by_hash = {}
     for style in scope.recipe:
         pool = Path("work/pool") / style / system
@@ -862,7 +926,19 @@ def find_placeholders(scope, system, threshold):
         for path in pool.iterdir():
             if path.is_file():
                 by_hash.setdefault(md5_file(path), []).append(path.stem)
-    return {h: keys for h, keys in by_hash.items() if len(keys) >= threshold}
+
+    out = {}
+    for h, keys in by_hash.items():
+        if len(keys) < threshold:
+            continue
+        ids = {ss_game_id(meta_dir, k) for k in keys}
+        ids.discard("")
+        # Unreadable metadata leaves ids empty: fall back to the key count
+        # rather than silently letting a real placeholder through.
+        if ids and len(ids) < threshold:
+            continue
+        out[h] = keys
+    return out
 
 
 def read_members(meta_dir):
