@@ -200,8 +200,23 @@ QUOTA_MARKERS = (
     "maximum threads",
     "API totalement",
     "API fermé",
-    "closed",
+    # "closed" alone is far too common a word to abort a whole run on: it
+    # appears in ordinary PHP notices. Qualified, it still catches SS's own
+    # "API closed" refusal.
+    "api closed",
     "quota",
+)
+
+# A PHP notice leaking out of the scraper is a glitch on ONE record -- SS
+# emits these while processing a corrupt image it holds -- not a refusal to
+# serve. Treating them as a quota wall aborted a 1387-game Saturn run twice
+# in the wave-2 batch; the systems queried immediately afterwards ran hundreds
+# of requests without trouble, which is the proof it was never a wall.
+PHP_NOTICE_MARKERS = (
+    "<b>warning</b>",
+    "<b>notice</b>",
+    "<b>fatal error</b>",
+    "<b>deprecated</b>",
 )
 
 
@@ -250,6 +265,13 @@ def check_quota_wall(body_text):
             if not any(m.lower() in error.lower() for m in QUOTA_MARKERS):
                 return
             body_text = error
+    low = body_text.lower()
+    if (any(m in low for m in PHP_NOTICE_MARKERS)
+            and not any(m.lower() in low for m in QUOTA_MARKERS)):
+        # Server-side hiccup on this one game: let the caller mark it a miss
+        # and keep going. Re-run with --retry-miss once SS has fixed its
+        # record, or leave it; one game without a box is not a broken pack.
+        return
     for marker in QUOTA_MARKERS:
         if marker.lower() in body_text.lower():
             die("ScreenScraper refused the request (quota/threads/API closed):\n"
