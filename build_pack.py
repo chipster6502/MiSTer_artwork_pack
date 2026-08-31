@@ -467,7 +467,7 @@ VARIANT_WEIGHTS = (
     (1, ("virtual console", "classic mini", "switch online", "(arcade)",
          "(gamecube", "(wii", "collection", "anthology", "compilation",
          "archives", "anniversary", "competition cart", "mail-order",
-         "aftermarket", "(unl", "(pirate")),
+         "aftermarket", "evercade", "(unl", "(pirate")),
     (1, ("(rev", "(v1.", "(v2.")),
 )
 
@@ -790,9 +790,34 @@ def pool_index(style, system):
     return {path.stem: path for path in pool.iterdir() if path.is_file()}
 
 
-def pick_media(medias, style, regions):
-    """First media of given type following the region chain, else any region."""
+def key_region(name):
+    """The region the dump name states, '' when it states none."""
+    low = name.lower()
+    for code, words in REGION_WORDS.items():
+        for word in words:
+            if f"({word}" in low or f", {word}" in low or f" {word})" in low:
+                return code
+    return ""
+
+
+def pick_media(medias, style, regions, prefer=""):
+    """First media of given type following the region chain, else any region.
+
+    'prefer' is the region the dump itself declares, and it wins over the
+    chain: a Japanese dump should get the Japanese box, not the American one
+    the chain happens to reach first. Without it every key of a game resolves
+    to the same image, which is why the pack shipped 1345 groups of keys
+    holding byte-identical files -- 803 of them with a real regional cover
+    sitting unused in the same ScreenScraper entry.
+
+    It only ever picks among media that exist, so a dump whose region SS does
+    not carry falls back to the chain exactly as before.
+    """
     of_style = [m for m in medias if m.get("type") == style and m.get("url")]
+    if prefer:
+        for m in of_style:
+            if m.get("region") == prefer:
+                return m
     for region in regions:
         for m in of_style:
             if m.get("region") == region:
@@ -839,7 +864,8 @@ def stage_fetch(scope, creds, only_system=None):
             medias = jeu.get("medias") or []
             media = style_used = None
             for style in scope.recipe:
-                media = pick_media(medias, style, scope.regions)
+                media = pick_media(medias, style, scope.regions,
+                                  key_region(key))
                 if media:
                     style_used = style
                     break
@@ -905,6 +931,30 @@ def game_info_row(jeu, scope):
 
 MANIFEST_FIELDS = ["system", "key", "ss_id", "ss_system_id", "ss_system",
                    "style", "region", "md5", "size", "width", "height"]
+
+
+def load_names(path=Path("names.tsv")):
+    """(system, key) -> display name, from a reviewed TSV.
+
+    ScreenScraper sometimes carries junk in the one field the region chain
+    reads first: the 'wor' name of Magic Knight Rayearth is its SEQUEL's
+    title, and E.T. on the 2600 is named after a ROM hack. The game is
+    identified correctly and gets the right box; only the printed name is
+    wrong, and nothing else in the pipeline can fix it.
+    """
+    table = {}
+    if not Path(path).is_file():
+        return table
+    for line in Path(path).read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = line.split("\t")
+        if len(parts) >= 3:
+            table[(parts[0], parts[1])] = parts[2].strip()
+        elif len(parts) == 2:
+            table[(None, parts[0])] = parts[1].strip()
+    return table
 
 
 # ScreenScraper files everything that is not a game -- cleaning discs, store
@@ -1013,8 +1063,46 @@ def read_members(meta_dir):
     return keys
 
 
+# The SD card allocates in 128 KB blocks, so a file's real cost is its size
+# rounded up to the next block. The per-style quality is chosen as the highest
+# that still fits inside ONE block -- paying for space that is charged anyway.
+# For the images that overflow it the logic inverts: the second block buys
+# nothing visible and is charged in full, so the cheapest correct answer is to
+# compress a little harder until it fits.
+#
+# Measured over the box2d pack: 3,665 images spill into a second block, and
+# pulling them back costs far less than it looks -- 2,558 of them (70%) fit
+# after a single 5-point step, and 3,389 fit by 75. Only 29 would need to drop
+# below 70, which is why the floor sits at 75: it captures 444 MB of the 480
+# available while the deepest cut anyone takes is ten points. The 276 images
+# that still overflow keep two blocks AND their quality, which is the right
+# trade for a detailed cover full of small print.
+ALLOC_BLOCK = 128 * 1024
+QUALITY_FLOOR = 75
+
+
+def save_within_block(img, target, quality, block=ALLOC_BLOCK,
+                      floor=QUALITY_FLOOR):
+    """Save a JPEG, stepping quality down until it fits one allocation block.
+
+    Gives up at the floor rather than degrade an image beyond recognition: a
+    handful of very detailed covers legitimately need two blocks.
+    """
+    img.save(target, format="JPEG", quality=quality, optimize=True,
+             progressive=False)
+    while target.stat().st_size > block and quality > floor:
+        quality -= 5
+        img.save(target, format="JPEG", quality=quality, optimize=True,
+                 progressive=False)
+    return quality
+
+
 def stage_assemble(scope, only_system=None, prune=False):
     from PIL import Image
+
+    forced_names = load_names()
+    if forced_names:
+        log(f"[assemble] {len(forced_names)} forced name(s) loaded")
 
     # Per style: rows are keyed by (system, key), so a second style
     # would otherwise overwrite the first one's hashes in place.
@@ -1052,6 +1140,8 @@ def stage_assemble(scope, only_system=None, prune=False):
                 continue
             jeu = json.loads(meta_path.read_text(encoding="utf-8"))
             name, year, genre, dev, players, synopsis = game_info_row(jeu, scope)
+            name = (forced_names.get((system, key))
+                    or forced_names.get((None, key)) or name)
             rows.append([key, name, year, genre, dev, players])
             for lang, text in synopsis.items():
                 syn_rows.setdefault(lang, []).append((key, text))
@@ -1090,8 +1180,7 @@ def stage_assemble(scope, only_system=None, prune=False):
                             ratio = scope.max_px / max(w, h)
                             img = img.resize((round(w * ratio), round(h * ratio)),
                                              Image.LANCZOS)
-                        img.save(target, format="JPEG", quality=scope.quality,
-                                 optimize=True, progressive=False)
+                        save_within_block(img, target, scope.quality)
                 except Exception as exc:
                     # drop it from the pool so the next fetch retries
                     log(f"[assemble] {system}: unreadable {src.name} ({exc}); "
