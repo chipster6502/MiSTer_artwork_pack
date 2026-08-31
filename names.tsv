@@ -1,0 +1,25 @@
+# Forced display names, tab separated:
+#   <system section>  <key>  <name>   [# note]
+#
+# ScreenScraper's 'wor' entry wins the region chain, and sometimes it holds
+# junk: a sequel's title, a ROM hack's title, a Chinese release, or the name
+# truncated to its first word. The game is identified correctly and gets the
+# right box; only the printed name in gameinfo.tsv is wrong, and nothing else
+# in the pipeline can fix it.
+#
+# Found with name_audit.py. Every line here was checked against the other
+# names in the same fiche with inspect_meta.py -- a low similarity alone is
+# not evidence, and most of what that script flags is a legitimate retitle.
+#
+# system	key	name	# what SS says instead
+
+Atari2600	E.T. - The Extra-Terrestrial (USA)	E.T. - The Extra-Terrestrial	# 'E.T. - Pits Hack', a ROM hack
+GAMEBOY	Magic Knight Rayearth (Japan) (SGB Enhanced)	Magic Knight Rayearth	# 'Mahou Kishi Rayearth 2nd. - The Missing Colors', the sequel
+GAMEBOY	Megami Tensei Gaiden - Last Bible (Japan)	Megami Tensei Gaiden - Last Bible	# 'Meng Huan Zhi Xing', a Chinese title
+GAMEBOY	Oni II - Oni Densetsu (Japan)	Oni II - Oni Densetsu	# 'Oni', the series name alone
+GAMEBOY	Gegege no Kitarou - Youkai Souzoushu Arawaru! (Japan) (SGB Enhanced)	Gegege no Kitarou - Youkai Souzoushu Arawaru!	# 'Kitarou'
+GAMEBOY	Bakuchou Retsuden Shou - Hyper Fishing (Japan) (SGB Enhanced)	Bakuchou Retsuden Shou - Hyper Fishing	# 'Shou Hyper Fish'
+GAMEBOY	Kiteretsu Daihyakka - Bouken Ooedo Juraki (Japan)	Kiteretsu Daihyakka - Bouken Ooedo Juraki	# 'Kiteretu Zyuraki'
+GAMEBOY	Kuma no Puutarou - Takara Sagashi da Ooiri Game Battle! (Japan) (SGB Enhanced)	Kuma no Puutarou - Takara Sagashi da Ooiri Game Battle!	# 'Kumano Putaru'
+GAMEBOY	Sakigake!! Otoko Juku - Meioutou Kessen (Japan)	Sakigake!! Otoko Juku - Meioutou Kessen	# 'Otoko Jyuku'
+GBC	Pac-Man - Special Color Edition (USA) (SGB Enhanced) (GB Compatible)	Pac-Man - Special Color Edition	# 'Pac-man', the base game
