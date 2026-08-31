@@ -499,7 +499,15 @@ def disc_number(name):
     first: it is a single-disc release and already represents the game whole.
     """
     m = re.search(r"\(disc\s*(\d+)", name.lower())
-    return int(m.group(1)) if m else 0
+    if not m:
+        # No tag. Ranked BETWEEN disc 1 and disc 2, not ahead of everything:
+        # a single-disc release does represent the game whole, but so does a
+        # preview or sampler disc that carries no tag either, and that one
+        # must never outrank the actual first disc. Electing 'Final Fantasy
+        # VII (USA) (Square Soft on PlayStation Previews)' over '(Disc 1)'
+        # is exactly what ranking it first did.
+        return 1.5
+    return int(m.group(1))
 
 
 def variant_penalty(name):
