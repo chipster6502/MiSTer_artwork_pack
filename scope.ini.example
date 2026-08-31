@@ -91,6 +91,12 @@ kind = console
 source = dat:dats/nes.dat
 group = nintendo-consoles
 
+[system:FDS]
+ss_id = 106
+kind = console
+source = dat:dats/fds.dat
+group = nintendo-consoles
+
 [system:VirtualBoy]
 ss_id = 11
 kind = console
@@ -108,6 +114,18 @@ ss_id = 14
 kind = console
 source = dat:dats/n64.dat
 group = nintendo-consoles
+
+[system:GAMEBOY]
+ss_id = 9
+kind = console
+source = dat:dats/gameboy.dat
+group = nintendo-handhelds
+
+[system:GBC]
+ss_id = 10
+kind = console
+source = dat:dats/gbc.dat
+group = nintendo-handhelds
 
 [system:GBA]
 ss_id = 12
@@ -174,6 +192,12 @@ ss_id = 105
 kind = console
 source = dat:dats/supergrafx.dat
 group = nec
+
+[system:NEOGEO]
+ss_id = 142
+kind = console
+source = dat:dats/neogeo.dat
+group = snk
 
 [system:NeoGeoPocket]
 ss_id = 25
