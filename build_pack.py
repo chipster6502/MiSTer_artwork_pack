@@ -1244,11 +1244,16 @@ def stage_assemble(scope, only_system=None, prune=False):
 
         # images left over from a previous, wider scope
         if in_scope is not None:
+            # Sweep manifest rows by scope, not by what survives on disk:
+            # a pruned image leaves a row no later run can reach, so the row
+            # outlives its key through every future build.
+            for row in [r for r in manifest
+                        if r[0] == system and r[1] not in in_scope]:
+                manifest.pop(row, None)
             orphans = [p for p in out_dir.glob("*.jpg")
                        if p.stem not in in_scope]
-            for orphan in orphans:
-                manifest.pop((system, orphan.stem), None)
-                if prune:
+            if prune:
+                for orphan in orphans:
                     orphan.unlink()
             if orphans:
                 names = ", ".join(sorted(p.stem for p in orphans)[:5])
