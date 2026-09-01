@@ -1244,11 +1244,14 @@ def stage_assemble(scope, only_system=None, prune=False):
 
         # images left over from a previous, wider scope
         if in_scope is not None:
-            # Sweep manifest rows by scope, not by what survives on disk:
-            # a pruned image leaves a row no later run can reach, so the row
-            # outlives its key through every future build.
+            # A manifest row exists if and only if its image does. Scope
+            # alone is half the rule: a key excluded by hand or dropped as a
+            # placeholder stays in the DAT, so it stays in scope, and its row
+            # would go on describing a file that is not in the pack.
             for row in [r for r in manifest
-                        if r[0] == system and r[1] not in in_scope]:
+                        if r[0] == system
+                        and (r[1] not in in_scope
+                             or not (out_dir / (r[1] + ".jpg")).is_file())]:
                 manifest.pop(row, None)
             orphans = [p for p in out_dir.glob("*.jpg")
                        if p.stem not in in_scope]
