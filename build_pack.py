@@ -9,11 +9,9 @@ Four resumable stages driven by scope.ini:
             gameinfo.tsv, synopsis_<lang>.tsv, index.tsv and manifest.csv
   package   one Downloader database per system -> out/db/
 
-State lives on disk: each stage skips whatever already exists, so any stage
-can be interrupted and re-run. Delete a file to force it to be rebuilt.
-
-Credentials come from the environment, never from files:
-  SS_DEVID, SS_DEVPASSWORD, SS_SSID, SS_SSPASSWORD
+Every stage skips what already exists on disk; delete a file to rebuild it.
+Credentials come from the environment only: SS_DEVID, SS_DEVPASSWORD,
+SS_SSID, SS_SSPASSWORD.
 """
 
 import argparse
@@ -93,9 +91,7 @@ class Scope:
 
         pk = cp["pack"] if cp.has_section("pack") else {}
 
-        # Every style declared once, selected per run. Keeping the
-        # recipe out of the edited-in values means no file swapping
-        # between generations.
+        # every style declared once, selected per run with --style
         self.styles = {}
         self.style_opts = {}
         for section in cp.sections():
@@ -119,16 +115,14 @@ class Scope:
             self.recipe = [s.strip() for s in pk.get("style_recipe", "box-2D>mixrbv2").split(">") if s.strip()]
             self.style_label = pk.get("style_label", "").strip() or \
                 self.recipe[0].lower().replace("-", "").replace("_", "")
-        # A style may override the pack default: how a style
-        # compresses varies enough that one number does not fit all.
+        # per-style quality: styles compress very differently
         opts = self.style_opts.get(self.style_label, {})
         self.quality = int(opts.get("quality", pk.get("quality", "80")))
         self.max_px = int(pk.get("max_px", "768"))
         self.placeholder_min = int(pk.get("placeholder_min", "3"))
         self.url_base = pk.get("url_base", "").rstrip("/")
         self.db_id_prefix = pk.get("db_id_prefix", "").strip()
-        # Where the db branch is served from. Same {group}/{style}
-        # placeholders as url_base. Optional: only verify needs it.
+        # db branch root, same placeholders as url_base; only verify needs it
         self.db_url_base = pk.get("db_url_base", "").rstrip("/")
 
         self.systems = {}  # name -> dict(ss_id, kind, source)
@@ -143,9 +137,8 @@ class Scope:
                 "ss_id": cp[section].get("ss_id", "").strip(),
                 "kind": cp[section].get("kind", "console").strip(),
                 "source": cp[section].get("source", "").strip(),
-                # Repo that hosts this system's media. Identity
-                # (db_id) stays per-system, so regrouping later only
-                # changes base_files_url and breaks no downloader.ini.
+                # media repo; db_id stays per system, so regrouping breaks
+                # nobody's downloader.ini
                 "group": cp[section].get("group", "").strip()
                          or name.lower(),
                 # extra ids accepted besides the family of ss_id
@@ -200,18 +193,14 @@ QUOTA_MARKERS = (
     "maximum threads",
     "API totalement",
     "API fermé",
-    # "closed" alone is far too common a word to abort a whole run on: it
-    # appears in ordinary PHP notices. Qualified, it still catches SS's own
-    # "API closed" refusal.
+    # "closed" alone appears in ordinary PHP notices; qualified it still
+    # catches SS's own refusal
     "api closed",
     "quota",
 )
 
-# A PHP notice leaking out of the scraper is a glitch on ONE record -- SS
-# emits these while processing a corrupt image it holds -- not a refusal to
-# serve. Treating them as a quota wall aborted a 1387-game Saturn run twice
-# in the wave-2 batch; the systems queried immediately afterwards ran hundreds
-# of requests without trouble, which is the proof it was never a wall.
+# A PHP notice leaking from the scraper is a glitch on one record, not a
+# refusal to serve; treating it as a quota wall aborted whole runs.
 PHP_NOTICE_MARKERS = (
     "<b>warning</b>",
     "<b>notice</b>",
@@ -221,8 +210,7 @@ PHP_NOTICE_MARKERS = (
 
 
 def strip_auth(url):
-    """Drop credential parameters. SS embeds them in media URLs and echoes
-    them back in errors, so replies must be cleaned before hitting disk."""
+    """Drop credential parameters: SS embeds them in media URLs and errors."""
     if "?" not in url:
         return url
     base, _, query = url.partition("?")
@@ -250,10 +238,8 @@ def redact_json(node):
 
 
 def json_after_noise(text):
-    """The jeu from a reply with junk prepended, or None when there is none.
-
-    Only useful when something precedes the JSON: a body that already starts
-    with '{' and failed to parse is broken, not merely dirty."""
+    """The jeu from a reply with junk prepended, or None. A body that starts
+    with '{' and fails to parse is broken, not dirty."""
     start = text.find("{")
     if start <= 0:
         return None
@@ -265,13 +251,10 @@ def json_after_noise(text):
 
 
 def check_quota_wall(body_text):
-    """Abort only on a real refusal. Valid JSON without a game is an ordinary
-    miss - the reply carries usage counters that mention quotas."""
+    """Abort only on a real refusal; valid JSON without a game is a miss."""
     stripped = body_text.strip()
-    # A PHP notice can precede an otherwise valid reply. Judge the JSON that
-    # follows it, never the raw text: EVERY reply carries usage counters that
-    # mention quotas, so a raw substring scan of a dirty body reads as a wall
-    # and kills the run. This is what aborted a 1387-game Saturn batch.
+    # Judge the JSON after a PHP notice, never the raw text: every reply
+    # mentions quotas in its usage counters.
     if not stripped.startswith(("{", "[")):
         brace = stripped.find("{")
         if brace > 0 and any(m in stripped.lower() for m in PHP_NOTICE_MARKERS):
@@ -291,9 +274,7 @@ def check_quota_wall(body_text):
     low = body_text.lower()
     if (any(m in low for m in PHP_NOTICE_MARKERS)
             and not any(m.lower() in low for m in QUOTA_MARKERS)):
-        # Server-side hiccup on this one game: let the caller mark it a miss
-        # and keep going. Re-run with --retry-miss once SS has fixed its
-        # record, or leave it; one game without a box is not a broken pack.
+        # server-side hiccup on one game: let the caller mark it a miss
         return
     for marker in QUOTA_MARKERS:
         if marker.lower() in body_text.lower():
@@ -307,9 +288,8 @@ COUNTER_LOCK = threading.Lock()
 
 
 def run_parallel(tasks, worker, threads, delay, label, total):
-    """Bounded thread pool. threads must stay at or below the account's
-    maxthreads. die() in a thread only kills that thread, so refusals are
-    signalled through ABORT and re-raised by the caller."""
+    """Bounded thread pool. die() in a worker only kills that thread, so
+    refusals travel through ABORT and are re-raised here."""
     done = {"n": 0}
     failed = {"n": 0}
     results = []
@@ -354,8 +334,7 @@ def run_parallel(tasks, worker, threads, delay, label, total):
 # game sources (what to build): No-Intro DAT, MRA folder, plain list
 # ----------------------------------------------------------------------------
 
-# Unofficial / Non-Redump sets: SS does not catalog them, so they would only
-# burn quota and produce misses.
+# not catalogued by SS: querying them only burns quota
 UNOFFICIAL_MARKERS = ("(unl)", "(aftermarket)", "(pirate)", "(homebrew)",
                       "(test program)", "(program)", "(kiosk)",
                       "(debug", "(bios)")
@@ -397,9 +376,7 @@ def load_entries(source, limit=0):
             die(f"MAME listxml not found: {path}\n"
                 "  Download mameXXXXlx.zip from "
                 "https://github.com/mamedev/mame/releases and unzip it here.")
-        # 300+ MB: stream it. Keep playable coin-op machines only; devices,
-        # BIOS, mechanical cabinets and the MESS consoles/computers (no coin
-        # slot) are not arcade games.
+        # 300+ MB: stream it, and keep playable coin-op machines only
         for _, el in ET.iterparse(path, events=("end",)):
             if el.tag != "machine":
                 continue
@@ -452,16 +429,14 @@ def load_entries(source, limit=0):
 
 
 # ----------------------------------------------------------------------------
-# variant clustering: a DAT has one <game> per dump (regions, revisions,
-# betas). Cluster them, fetch art only for one elected representative, and
-# index every variant to it: full matching scope at one image per game.
+# variant clustering: one <game> per dump in a DAT; elect one representative
+# per game and index every variant to it
 # ----------------------------------------------------------------------------
 
 REGION_WORDS = {"wor": ("world",), "us": ("usa",), "eu": ("europe",),
                 "jp": ("japan",), "sp": ("spain",), "fr": ("france",),
                 "de": ("germany",), "it": ("italy",)}
-# Summed demotion weights. An unreleased prototype is a far worse artwork
-# source than a re-release, so it sinks deeper.
+# summed demotion weights; a prototype sinks deeper than a re-release
 VARIANT_WEIGHTS = (
     (3, ("beta", "proto", "sample", "(demo", "(alt", "(program", "(debug")),
     (1, ("virtual console", "classic mini", "switch online", "(arcade)",
@@ -488,24 +463,15 @@ def region_score(name, regions):
 
 
 def disc_number(name):
-    """Disc N as an integer; 0 when the dump carries no disc tag.
+    """Disc N; 1.5 when the dump carries no disc tag.
 
-    A multi-disc game has no dump that stands for the whole thing, so the
-    election must pick one -- and always the SAME one, or the artwork key
-    flips between discs depending on which happens to carry the shorter
-    subtitle. Before this existed 'Fahrenheit (USA) (Disc 2) (32X CD)' beat
-    '(Disc 1) (Key Disc) (Sega CD)' on the length tie-break alone, electing
-    the second disc of the game as its cover. A dump with no disc tag sorts
-    first: it is a single-disc release and already represents the game whole.
+    The election must always pick the SAME disc of a multi-disc game, or the
+    key flips between discs. An untagged dump ranks between disc 1 and 2: a
+    single-disc release represents the whole game, but so does an untagged
+    sampler, and that must never outrank the real first disc.
     """
     m = re.search(r"\(disc\s*(\d+)", name.lower())
     if not m:
-        # No tag. Ranked BETWEEN disc 1 and disc 2, not ahead of everything:
-        # a single-disc release does represent the game whole, but so does a
-        # preview or sampler disc that carries no tag either, and that one
-        # must never outrank the actual first disc. Electing 'Final Fantasy
-        # VII (USA) (Square Soft on PlayStation Previews)' over '(Disc 1)'
-        # is exactly what ranking it first did.
         return 1.5
     return int(m.group(1))
 
@@ -518,9 +484,8 @@ def variant_penalty(name):
 
 
 def elect_key(entry, regions):
-    """Representative sort key: variant penalty, then region chain, then
-    <release> as tie-break, then name. Region outranks <release> because
-    No-Intro tags it unevenly (Starwing (Germany) would beat Star Fox (USA))."""
+    """Representative sort key: penalty, region chain, <release>, disc, name.
+    Region outranks <release> because No-Intro tags it unevenly."""
     return (variant_penalty(entry["key"]),
             region_score(entry["key"], regions),
             0 if entry.get("release") else 1,
@@ -529,12 +494,8 @@ def elect_key(entry, regions):
 
 
 def cluster_mame_entries(entries):
-    """Group MAME sets under their parent. Returns (parents, members).
-
-    Unlike No-Intro there is nothing to elect: MAME defines the parent as
-    the reference set, so it is queried and every clone maps to its key in
-    the index. An orphan clone (parent filtered out) becomes its own group.
-    """
+    """Group MAME sets under their parent: nothing to elect, MAME's parent is
+    the reference set. An orphan clone becomes its own group."""
     by_name = {e["key"]: e for e in entries}
     parents, members = [], []
     for e in entries:
@@ -547,12 +508,9 @@ def cluster_mame_entries(entries):
 
 
 def cluster_dat_entries(entries, regions):
-    """Group dumps and elect one representative each. Returns
-    (representatives, members) with members rows (name, crc, size, key).
-
-    Groups by the official cloneof when the DAT is P/C XML, by normalized
-    title otherwise. The parent is not automatically the representative:
-    No-Intro often picks a European Rev 1."""
+    """Group dumps and elect one representative each; members rows are
+    (name, crc, size, key). Groups by cloneof when the DAT is P/C, by
+    normalized title otherwise. The parent is not automatically elected."""
     by_name = {e["key"]: e for e in entries}
     # real parents: the parent entry has no cloneof, so it needs its own group
     parents = {e["cloneof"] for e in entries
@@ -592,8 +550,7 @@ def write_members(meta_dir, members):
 # ----------------------------------------------------------------------------
 
 def fetch_systems(scope, creds):
-    """systemesListe.php, cached in work/systems.json. Needed to know which
-    systems are children of which."""
+    """systemesListe.php, cached in work/systems.json: parent of each system."""
     cache = Path("work/systems.json")
     if cache.is_file():
         return json.loads(cache.read_text(encoding="utf-8"))
@@ -618,8 +575,7 @@ def fetch_systems(scope, creds):
 
 def in_family(systems, resolved_id, wanted_id, extra_ok=(), rejected=()):
     """Whether a reply may be accepted for the queried system. A rejected id
-    always loses, even when it is a legitimate child (Game & Watch hangs off
-    Mame, which is how 'pacman' returned a Tomytronic LCD box)."""
+    always loses, even as a legitimate child (Game & Watch hangs off Mame)."""
     if resolved_id and resolved_id in rejected:
         return False
     if not resolved_id or resolved_id == wanted_id:
@@ -636,9 +592,8 @@ def in_family(systems, resolved_id, wanted_id, extra_ok=(), rejected=()):
 
 
 def load_overrides(path=Path("overrides.tsv")):
-    """key -> systemeid, from a reviewed TSV. jeuInfos falls back to a global
-    name search when a romset is missing from the queried system, so generic
-    names need the exact subsystem spelled out."""
+    """key -> systemeid from overrides.tsv: jeuInfos falls back to a global
+    name search, so generic names need the subsystem spelled out."""
     table = {}
     if not Path(path).is_file():
         return table
@@ -678,10 +633,7 @@ def query_game(scope, creds, system_id, entry):
         jeu = json.loads(text)["response"]["jeu"]
         assert jeu.get("id")
     except (ValueError, KeyError, AssertionError):
-        # SS sometimes prepends a PHP notice to an otherwise perfectly good
-        # reply -- it emits one while processing a corrupt image of its own --
-        # which breaks the parse even though the JSON that follows is intact.
-        # Salvage it rather than lose the game.
+        # SS sometimes prepends a PHP notice to a good reply: salvage the JSON
         jeu = json_after_noise(text)
         if jeu is not None:
             return jeu, text
@@ -781,9 +733,8 @@ def stage_identify(scope, creds, only_system=None, limit=0, retry_miss=False):
 # ----------------------------------------------------------------------------
 
 def pool_index(style, system):
-    """{stem: path} for a pool directory. Never glob by key: No-Intro names
-    contain metacharacters ("[b]" is a character class) and the lookup would
-    silently miss. Listing once is also cheaper."""
+    """{stem: path} for a pool directory. Listed, never globbed: No-Intro
+    names contain glob metacharacters ("[b]")."""
     pool = Path("work/pool") / style / system
     if not pool.is_dir():
         return {}
@@ -801,18 +752,9 @@ def key_region(name):
 
 
 def pick_media(medias, style, regions, prefer=""):
-    """First media of given type following the region chain, else any region.
-
-    'prefer' is the region the dump itself declares, and it wins over the
-    chain: a Japanese dump should get the Japanese box, not the American one
-    the chain happens to reach first. Without it every key of a game resolves
-    to the same image, which is why the pack shipped 1345 groups of keys
-    holding byte-identical files -- 803 of them with a real regional cover
-    sitting unused in the same ScreenScraper entry.
-
-    It only ever picks among media that exist, so a dump whose region SS does
-    not carry falls back to the chain exactly as before.
-    """
+    """First media of the given type: the dump's own region first, then the
+    region chain, then any. Without 'prefer' every key of a game got the same
+    image while a real regional cover sat unused in the same SS entry."""
     of_style = [m for m in medias if m.get("type") == style and m.get("url")]
     if prefer:
         for m in of_style:
@@ -934,14 +876,9 @@ MANIFEST_FIELDS = ["system", "key", "ss_id", "ss_system_id", "ss_system",
 
 
 def load_names(path=Path("names.tsv")):
-    """(system, key) -> display name, from a reviewed TSV.
-
-    ScreenScraper sometimes carries junk in the one field the region chain
-    reads first: the 'wor' name of Magic Knight Rayearth is its SEQUEL's
-    title, and E.T. on the 2600 is named after a ROM hack. The game is
-    identified correctly and gets the right box; only the printed name is
-    wrong, and nothing else in the pipeline can fix it.
-    """
+    """(system, key) -> display name from names.tsv. SS sometimes holds junk
+    in the 'wor' name (a sequel's title, a ROM hack); the game and its box
+    are right, only the printed name is wrong."""
     table = {}
     if not Path(path).is_file():
         return table
@@ -957,14 +894,8 @@ def load_names(path=Path("names.tsv")):
     return table
 
 
-# ScreenScraper files everything that is not a game -- cleaning discs, store
-# demos, samplers, promo material -- under one catch-all entry whose name it
-# prefixes with this marker. Four MegaCD discs resolved to the very same id
-# (256921) in the wave-2 pilot, which would have downloaded one identical
-# non-image four times over. The placeholder detector would probably have
-# caught those four (its threshold is 3), but that is luck: two such discs in
-# a smaller system slip through, and disc-based sets are full of them -- PSX
-# especially. Rejecting by the marker is exact and needs no threshold.
+# SS files everything that is not a game under one catch-all entry with this
+# name prefix. Rejecting by marker is exact; the placeholder threshold is luck.
 NONGAME_MARKER = "zzz(notgame)"
 
 
@@ -977,9 +908,8 @@ def is_nongame(jeu):
 
 
 def ss_subsystem(jeu):
-    """(id, name) of the system SS actually resolved the game to. Arcade is a
-    parent plus dozens of manufacturer subsystems, so this differs from the
-    queried id and makes coverage gaps diagnosable per manufacturer."""
+    """(id, name) of the system SS resolved the game to; under Arcade this
+    is a manufacturer subsystem, not the queried id."""
     sysinfo = jeu.get("systeme") or {}
     if not isinstance(sysinfo, dict):
         return "", ""
@@ -992,8 +922,8 @@ def ss_subsystem(jeu):
 
 
 def load_manifest(path, fields):
-    """Read an existing manifest, padding rows written by older builds so a
-    newly added column never breaks a resumed run."""
+    """Read an existing manifest, padding rows from older builds so a new
+    column never breaks a resumed run."""
     rows = {}
     if path.is_file():
         with open(path, newline="", encoding="utf-8") as f:
@@ -1013,20 +943,12 @@ def ss_game_id(meta_dir, key):
 
 
 def find_placeholders(scope, system, threshold):
-    """MD5s of empty templates. SS renders the mix composite even with no
-    art, giving an identical blank frame to every such game; real artwork is
-    never byte-identical, so a repeated hash is a placeholder.
+    """MD5s of empty templates: SS renders the mix composite even with no
+    art, so a byte-identical image repeated across games is a placeholder.
 
-    'Different game' means a different ScreenScraper ENTRY, not a different
-    key. A game released under different titles per region -- Mansion of
-    Hidden Souls / Yumemi Yakata no Monogatari / Yumemi Mystery Mansion --
-    clusters into as many groups as it has titles, because norm_title() only
-    strips parentheses and cannot translate. All of them resolve to the same
-    SS entry and are legitimately served the same box, which the count alone
-    reads as a placeholder: nine real MegaCD covers were discarded that way
-    in the wave-2 pilot. Counting distinct SS ids instead keeps the original
-    premise intact -- a true placeholder is shared across genuinely different
-    entries -- while making regional retitles free."""
+    Counted per distinct SS entry, not per key: a game retitled per region
+    forms several keys that legitimately share one box, and counting keys
+    discarded real covers."""
     meta_dir = Path("work/meta") / system
     by_hash = {}
     for style in scope.recipe:
@@ -1043,8 +965,7 @@ def find_placeholders(scope, system, threshold):
             continue
         ids = {ss_game_id(meta_dir, k) for k in keys}
         ids.discard("")
-        # Unreadable metadata leaves ids empty: fall back to the key count
-        # rather than silently letting a real placeholder through.
+        # unreadable metadata: fall back to the key count
         if ids and len(ids) < threshold:
             continue
         out[h] = keys
@@ -1063,31 +984,18 @@ def read_members(meta_dir):
     return keys
 
 
-# The SD card allocates in 128 KB blocks, so a file's real cost is its size
-# rounded up to the next block. The per-style quality is chosen as the highest
-# that still fits inside ONE block -- paying for space that is charged anyway.
-# For the images that overflow it the logic inverts: the second block buys
-# nothing visible and is charged in full, so the cheapest correct answer is to
-# compress a little harder until it fits.
-#
-# Measured over the box2d pack: 3,665 images spill into a second block, and
-# pulling them back costs far less than it looks -- 2,558 of them (70%) fit
-# after a single 5-point step, and 3,389 fit by 75. Only 29 would need to drop
-# below 70, which is why the floor sits at 75: it captures 444 MB of the 480
-# available while the deepest cut anyone takes is ten points. The 276 images
-# that still overflow keep two blocks AND their quality, which is the right
-# trade for a detailed cover full of small print.
+# The card allocates in 128 KB blocks, so a file costs its size rounded up.
+# Per-style quality is the highest that fits one block; an image that spills
+# into a second block is compressed a little harder until it fits. Measured:
+# 70% fit after one 5-point step, and a floor of 75 recovers 444 of 480 MB.
 ALLOC_BLOCK = 128 * 1024
 QUALITY_FLOOR = 75
 
 
 def save_within_block(img, target, quality, block=ALLOC_BLOCK,
                       floor=QUALITY_FLOOR):
-    """Save a JPEG, stepping quality down until it fits one allocation block.
-
-    Gives up at the floor rather than degrade an image beyond recognition: a
-    handful of very detailed covers legitimately need two blocks.
-    """
+    """Save a JPEG, stepping quality down until it fits one block. Stops at
+    the floor: a few detailed covers legitimately need two."""
     img.save(target, format="JPEG", quality=quality, optimize=True,
              progressive=False)
     while target.stat().st_size > block and quality > floor:
@@ -1104,8 +1012,7 @@ def stage_assemble(scope, only_system=None, prune=False):
     if forced_names:
         log(f"[assemble] {len(forced_names)} forced name(s) loaded")
 
-    # Per style: rows are keyed by (system, key), so a second style
-    # would otherwise overwrite the first one's hashes in place.
+    # per style: rows are keyed by (system, key)
     manifest_path = Path(f"out/manifest-{scope.style_label}.csv")
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
     manifest = load_manifest(manifest_path, MANIFEST_FIELDS)
@@ -1120,8 +1027,7 @@ def stage_assemble(scope, only_system=None, prune=False):
                    / system / "Artwork")
         out_dir.mkdir(parents=True, exist_ok=True)
 
-        # work/meta accumulates across runs: keys no longer in _members.tsv
-        # left the scope and must not reach the pack
+        # keys no longer in _members.tsv left the scope
         in_scope = read_members(meta_dir)
         pools = {style: pool_index(style, system) for style in scope.recipe}
         placeholders = find_placeholders(scope, system, scope.placeholder_min)
@@ -1165,9 +1071,8 @@ def stage_assemble(scope, only_system=None, prune=False):
             else:
                 try:
                     with Image.open(src) as img:
-                        # SS serves box-3D as RGBA PNG over a black
-                        # backdrop. Dropping alpha without compositing
-                        # lets Pillow fill it white, framing every box.
+                        # SS serves box-3D as RGBA over black: composite,
+                        # or Pillow fills the alpha white
                         if img.mode in ("RGBA", "LA", "P"):
                             img = img.convert("RGBA")
                             flat = Image.new("RGB", img.size, (0, 0, 0))
@@ -1202,9 +1107,8 @@ def stage_assemble(scope, only_system=None, prune=False):
             }
             pack_rows.append((key, style_used, sys_id))
 
-        # shipped alongside the images: lets a consumer filter by style and
-        # tell which SS system each image actually came from, which is what
-        # makes cross-catalog fallback (GB/GBC, NES/FDS) deterministic
+        # lets a consumer filter by style and see which SS system each
+        # image came from
         with open(out_dir / "manifest.tsv", "w", encoding="utf-8",
                   newline="") as f:
             f.write("#key\tstyle\tss_system_id\n")
@@ -1244,10 +1148,8 @@ def stage_assemble(scope, only_system=None, prune=False):
 
         # images left over from a previous, wider scope
         if in_scope is not None:
-            # A manifest row exists if and only if its image does. Scope
-            # alone is half the rule: a key excluded by hand or dropped as a
-            # placeholder stays in the DAT, so it stays in scope, and its row
-            # would go on describing a file that is not in the pack.
+            # a manifest row exists iff its image does: an excluded key or a
+            # dropped placeholder stays in scope but has no file
             for row in [r for r in manifest
                         if r[0] == system
                         and (r[1] not in in_scope
@@ -1288,15 +1190,13 @@ def stage_assemble(scope, only_system=None, prune=False):
 # ----------------------------------------------------------------------------
 
 def stage_package(scope, only_system=None):
-    """One Downloader database per system. Format checked against
-    Downloader_MiSTer: "path": "pext" allows installing to USB instead of the
-    SD card, "base_files_url" replaces a per-file url, and "tags" are what
-    let a user filter by system from downloader.ini."""
+    """One Downloader database per system. "pext" allows USB installs,
+    "base_files_url" replaces per-file urls, "tags" drive downloader.ini
+    filters."""
     if not scope.url_base or not scope.db_id_prefix:
         die("scope.ini: [pack] url_base and db_id_prefix are required for package")
-    # A url_base left over from single-repo hosting would publish a
-    # base_files_url pointing at the wrong repo, and nothing would
-    # fail until someone tried to install.
+    # a single-repo url_base would point at the wrong repo and fail only
+    # at install time
     for token in ("{group}", "{style}"):
         if token not in scope.url_base:
             die(f"scope.ini: [pack] url_base must contain {token}")
@@ -1379,9 +1279,8 @@ def stage_package(scope, only_system=None):
 
 
 def cmd_resolve(scope, creds, only_system=None, limit=0):
-    """Sweep candidate subsystems for rejected games and write proposed
-    override lines to overrides.suggested.tsv. Nothing is applied
-    automatically; only rejected entries are swept, bounding the cost."""
+    """Sweep candidate subsystems for rejected games; proposals go to
+    overrides.suggested.tsv and nothing is applied."""
     systems = fetch_systems(scope, creds)
     out_lines, resolved, unresolved = [], 0, 0
 
@@ -1494,8 +1393,7 @@ def stage_verify(scope, only_system=None, sample=12):
             problems += 1
             continue
 
-        # The db matches, so its own base_files_url and hashes are the
-        # ones clients will use. Sample the media it points at.
+        # the db matches, so sample the media it points at
         with zipfile.ZipFile(io.BytesIO(local_bytes)) as zf:
             db = json.loads(zf.read(zf.namelist()[0]))
         entries = sorted(db["files"].items())

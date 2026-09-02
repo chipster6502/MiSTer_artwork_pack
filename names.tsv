@@ -1,15 +1,8 @@
-# Forced display names, tab separated:
-#   <system section>  <key>  <name>   [# note]
+# Forced display names, tab separated:  <system>  <key>  <name>  [# note]
 #
-# ScreenScraper's 'wor' entry wins the region chain, and sometimes it holds
-# junk: a sequel's title, a ROM hack's title, a Chinese release, or the name
-# truncated to its first word. The game is identified correctly and gets the
-# right box; only the printed name in gameinfo.tsv is wrong, and nothing else
-# in the pipeline can fix it.
-#
-# Found with name_audit.py. Every line here was checked against the other
-# names in the same fiche with inspect_meta.py -- a low similarity alone is
-# not evidence, and most of what that script flags is a legitimate retitle.
+# SS's 'wor' name wins the region chain and sometimes holds junk (a sequel,
+# a ROM hack, a truncation). The box is right; only the printed name is not.
+# Found with name_audit.py, each one checked with inspect_meta.py.
 #
 # system	key	name	# what SS says instead
 

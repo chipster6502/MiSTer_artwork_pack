@@ -4,30 +4,16 @@ Turn the Neo Geo core's romsets.xml into a Parent/Clone DAT the builder reads.
 
     python neogeo_dat.py romsets.xml dats/neogeo.dat
 
-A Neo Geo game's pack key is the name of its romset file or folder, and every
-rom pack names them differently. One real library holds three forms of the
-same game:
+Rom packs name a game three ways -- 'mslug2', 'Metal Slug 2 (mslug2).neo', a
+'Fatal Fury Special' folder -- so every spelling is emitted as an alias of one
+game and the builder indexes them all to it.
 
-    mslug2                       Darksoft folder and .zip: setname
-    Metal Slug 2 (mslug2).neo    @MiSTer Pack Add-on
-    Fatal Fury Special           @MiSTer Pack Add-on romset folder
-
-romsets.xml carries the setname, the commercial name and the Japanese one, so
-emitting them as aliases of one game is enough: the builder groups by cloneof,
-elects a representative, and writes every alias as an index.tsv row.
-
-Three decisions that are not obvious:
-
-  * THE KEY IS THE SETNAME. Altnames carry ':' and '/' — 'Metal Slug 2: Super
-    Vehicle-001/II' — and the key becomes a filename that neither Windows nor
-    exFAT accepts. Arcade already keys on setnames for the same reason.
-
-  * THE QUERY DOES NOT USE THE KEY. query_game() sends 'romnom', taken from
-    <rom name>, so ScreenScraper is asked for the commercial name. Asking it
-    for 'mslug2' would return nothing from a console catalogue.
-
-  * THE QUERY NAME IS CLEANED. romsets.xml inverts articles and appends
-    explanations in brackets; both make real commercial games 404.
+  * The key is the setname: altnames carry ':' and '/', which no filesystem
+    accepts in a filename.
+  * The query uses the commercial name, not the key: 'mslug2' returns nothing
+    from a console catalogue.
+  * The query name is cleaned: inverted articles and bracketed explanations
+    make real games 404.
 """
 import re
 import sys
@@ -68,13 +54,8 @@ def uninvert(name):
 
 
 def query_name(altname):
-    """Name to ask ScreenScraper for.
-
-    Cut at the slash, never at the colon. Measured: 'Street Hoop / Street
-    Slam' 404s while 'Street Hoop' returns a full box — a slash separates two
-    titles. Colons resolve fine, and cutting them would turn 'Fatal Fury:
-    King of Fighters' into the whole series.
-    """
+    """Name to ask ScreenScraper for. Cut at the slash, never at the colon:
+    a slash separates two titles, a colon does not (measured)."""
     name = EXPLANATORY.sub('', altname)
     name = re.split(r'\s+/\s+', name, maxsplit=1)[0]
     return ' '.join(uninvert(name.strip()).split()) or altname
@@ -82,24 +63,15 @@ def query_name(altname):
 
 SPLIT = re.compile(r'\s*:\s|\s+/\s+')
 
-# Bare halves that name a DIFFERENT series. 'Fatal Fury: King of Fighters'
-# is Fatal Fury 1, but its subtitle is the name of the eleven-game KOF
-# series, so the split handed those games' name to the wrong cabinet.
-# Measured over the whole set: 50 substring collisions, 49 of them a title
-# legitimately inside its own sequel ('Metal Slug' in 'Metal Slug 2') and
-# this the only one naming another series. Hence an exception, not a rule:
-# any rule that catches this one drops the 49 too. Compared lowercase.
+# Bare halves that name a DIFFERENT series: the subtitle of 'Fatal Fury: King
+# of Fighters' is the KOF series. An exception, not a rule -- measured, 49 of
+# 50 substring collisions are a title inside its own sequel. Lowercase.
 BARE_FORM_DENY = {'king of fighters'}
 
-# Romsets whose ScreenScraper query goes by SETNAME ('columnsn.zip') instead
-# of the commercial name. The commercial name is right for the 206 released
-# titles -- measured: 'mslug2' returns nothing from the console catalogue --
-# but these are homebrews and hacks named after famous games on OTHER
-# platforms, and jeuInfos' global name search hands back the namesake:
-# 'Columns' resolves to Sega Classics (147) and the transversality guard
-# rightly rejects it. The MiSTer Monitor firmware asks by setname and gets
-# the Neo Geo entry (Columns is game 203852 under 142). Every entry here
-# came out of build_pack.py identify as 'out-of-family'.
+# Queried by setname ('columnsn.zip') instead of commercial name: homebrews
+# named after famous games on OTHER platforms, which the global name search
+# returns instead ('Columns' -> Sega Classics). All came out of identify as
+# out-of-family.
 QUERY_BY_SETNAME = {
     'cabalng',       # Cabal (Neo Geo homebrew)
     'columnsn',      # Columns (Neo Geo homebrew)
@@ -112,14 +84,9 @@ QUERY_BY_SETNAME = {
 
 
 def name_forms(altname):
-    """Every spelling a rom pack might have used for this title.
-
-    Measured against a real library: packs cut at the colon and keep either
-    half ('Far East of Eden: Kabuki Klash' ships as 'Kabuki Klash'), replace
-    the colon with a dash ('Garou - Mark of the Wolves'), and space out
-    run-together names ('OverTop' ships as 'Over Top'). Each is one alias, and
-    an alias only ever costs an index row.
-    """
+    """Every spelling a rom pack might use: either half of a colon split, the
+    dash form, and run-together names spaced out. Measured on a real library;
+    an alias only ever costs an index row."""
     forms = {altname}
     parts = [p.strip() for p in SPLIT.split(altname) if p.strip()]
     forms.update(parts)
@@ -193,12 +160,10 @@ with open(target, 'w', encoding='utf-8') as out:
         if parent:
             attr += ' cloneof="%s"' % escape(parent, QUOTE)
         out.write('\t<game%s>\n' % attr)
-        # <release> outranks name length in elect_key(), which is what keeps
-        # the setname parent from losing to one of its own aliases.
+        # <release> keeps the setname parent from losing the election to an alias
         if has_release:
             out.write('\t\t<release name="%s"/>\n' % escape(name, QUOTE))
-        # <rom> is required: load_entries() drops a <game> without one. No crc
-        # or size, same as the arcade rows.
+        # <rom> is required by load_entries(); no crc/size, like arcade
         out.write('\t\t<rom name="%s"/>\n' % escape(romnom, QUOTE))
         out.write('\t</game>\n')
     out.write('</datafile>\n')

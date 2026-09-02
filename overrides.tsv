@@ -1,9 +1,6 @@
-# ScreenScraper subsystem overrides, tab separated:
-#   <system section>  <key>  <systemeid>   (system column may be omitted)
-#
-# jeuInfos falls back to a global name search when a romset is missing from
-# the queried system, so generic names resolve elsewhere. Generate candidates
-# with:  python build_pack.py resolve --system Arcade
+# ScreenScraper subsystem overrides:  <system>  <key>  <systemeid>  [# note]
+# jeuInfos falls back to a global name search, so generic names resolve
+# elsewhere. Candidates:  python build_pack.py resolve --system Arcade
 #
 # system	key	systemeid	# notes
 Arcade	pacman	155	# Namco Classics - Pac-man

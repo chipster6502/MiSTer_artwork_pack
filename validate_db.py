@@ -4,8 +4,8 @@
     git clone --depth 1 https://github.com/MiSTer-devel/Downloader_MiSTer.git ../Downloader_MiSTer
     python validate_db.py out/db/snes_box2d.json.zip
 
-The checkout is looked up in DOWNLOADER_SRC, then ../Downloader_MiSTer/src,
-then ./Downloader_MiSTer/src. Nothing is downloaded: the file is only parsed.
+Looks for the checkout in DOWNLOADER_SRC, ../Downloader_MiSTer/src, then
+./Downloader_MiSTer/src. Only parses; downloads nothing.
 """
 
 import json
