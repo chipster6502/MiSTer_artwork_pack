@@ -8,3 +8,5 @@
 # system	key	systemeid	# notes
 Arcade	pacman	155	# Namco Classics - Pac-man
 Arcade	tetris	147	# Sega Classics - Tetris (System 16)
+NEOGEO	neotris	75	# Mame - NeoTris, homebrew filed as a MAME romset
+NEOGEO	sbp	154	# SNK Classics - check the returned name before trusting it

@@ -91,6 +91,25 @@ SPLIT = re.compile(r'\s*:\s|\s+/\s+')
 # any rule that catches this one drops the 49 too. Compared lowercase.
 BARE_FORM_DENY = {'king of fighters'}
 
+# Romsets whose ScreenScraper query goes by SETNAME ('columnsn.zip') instead
+# of the commercial name. The commercial name is right for the 206 released
+# titles -- measured: 'mslug2' returns nothing from the console catalogue --
+# but these are homebrews and hacks named after famous games on OTHER
+# platforms, and jeuInfos' global name search hands back the namesake:
+# 'Columns' resolves to Sega Classics (147) and the transversality guard
+# rightly rejects it. The MiSTer Monitor firmware asks by setname and gets
+# the Neo Geo entry (Columns is game 203852 under 142). Every entry here
+# came out of build_pack.py identify as 'out-of-family'.
+QUERY_BY_SETNAME = {
+    'cabalng',       # Cabal (Neo Geo homebrew)
+    'columnsn',      # Columns (Neo Geo homebrew)
+    'kof98Ultimate', # KOF '98 Ultimate Match hack
+    'nblktigr',      # Neo Black Tiger (homebrew)
+    'neotris',       # NeoTris (homebrew)
+    'sbp',           # Super Bubble Pop (homebrew)
+    'tetrismn',      # Tetris (Neo Geo homebrew)
+}
+
 
 def name_forms(altname):
     """Every spelling a rom pack might have used for this title.
@@ -147,7 +166,9 @@ for gid in sorted(groups):
     if parent.lower() in taken:
         continue
     taken.add(parent.lower())
-    games.append((parent, query_name(base[1]), '', True))
+    romnom = (parent + '.zip' if parent in QUERY_BY_SETNAME
+              else query_name(base[1]))
+    games.append((parent, romnom, '', True))
     for sets, altname, altnamej in group:
         forms = [query_name(altname)]
         for source_name in (altname, altnamej):
