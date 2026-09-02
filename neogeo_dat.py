@@ -80,9 +80,38 @@ def query_name(altname):
     return ' '.join(uninvert(name.strip()).split()) or altname
 
 
-def short_name(altname):
-    """The form the .neo files use: up to the colon or the slash."""
-    return re.split(r'\s*:\s|\s+/\s+', altname, maxsplit=1)[0].strip() or altname
+SPLIT = re.compile(r'\s*:\s|\s+/\s+')
+
+# Bare halves that name a DIFFERENT series. 'Fatal Fury: King of Fighters'
+# is Fatal Fury 1, but its subtitle is the name of the eleven-game KOF
+# series, so the split handed those games' name to the wrong cabinet.
+# Measured over the whole set: 50 substring collisions, 49 of them a title
+# legitimately inside its own sequel ('Metal Slug' in 'Metal Slug 2') and
+# this the only one naming another series. Hence an exception, not a rule:
+# any rule that catches this one drops the 49 too. Compared lowercase.
+BARE_FORM_DENY = {'king of fighters'}
+
+
+def name_forms(altname):
+    """Every spelling a rom pack might have used for this title.
+
+    Measured against a real library: packs cut at the colon and keep either
+    half ('Far East of Eden: Kabuki Klash' ships as 'Kabuki Klash'), replace
+    the colon with a dash ('Garou - Mark of the Wolves'), and space out
+    run-together names ('OverTop' ships as 'Over Top'). Each is one alias, and
+    an alias only ever costs an index row.
+    """
+    forms = {altname}
+    parts = [p.strip() for p in SPLIT.split(altname) if p.strip()]
+    forms.update(parts)
+    if len(parts) > 1:
+        forms.add(' - '.join(parts))
+    # 'OverTop' -> 'Over Top'
+    for form in list(forms):
+        spaced = re.sub(r'(?<=[a-z])(?=[A-Z])', ' ', form)
+        if spaced != form:
+            forms.add(spaced)
+    return [f for f in forms if f and f.lower() not in BARE_FORM_DENY]
 
 
 def norm(name):
@@ -120,10 +149,13 @@ for gid in sorted(groups):
     taken.add(parent.lower())
     games.append((parent, query_name(base[1]), '', True))
     for sets, altname, altnamej in group:
-        aliases = list(sets[1:])
-        aliases += [n for n in (altname, query_name(altname),
-                                short_name(altname), altnamej) if n]
-        aliases += ['%s (%s)' % (short_name(altname), s) for s in sets]
+        forms = [query_name(altname)]
+        for source_name in (altname, altnamej):
+            if source_name:
+                forms += name_forms(source_name)
+        # Every form also in the '<title> (<setname>)' shape the .neo files use
+        aliases = list(sets[1:]) + forms
+        aliases += ['%s (%s)' % (f, s) for f in forms for s in sets]
         for name in aliases:
             if name.lower() in taken:
                 continue
