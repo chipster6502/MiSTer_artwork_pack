@@ -1005,6 +1005,42 @@ def save_within_block(img, target, quality, block=ALLOC_BLOCK,
     return quality
 
 
+def unify_siblings(meta_dir, pools, placeholders, in_scope, scope):
+    """{loser key: winner key} for keys of one system that share a fiche AND
+    a byte-identical source image.
+
+    The region preference in pick_media() already splits siblings when
+    ScreenScraper holds a cover per region; where it holds one, every dump of
+    the game got its own copy of it. Same fiche and same bytes mean the same
+    box for the same game, so one file suffices and the rest become index
+    rows. Grouped by the SOURCE md5, already computed for the placeholder
+    check, so losers are never encoded at all.
+    """
+    groups = {}
+    for meta_path in sorted(meta_dir.glob("*.json")):
+        key = meta_path.stem
+        if in_scope is not None and key not in in_scope:
+            continue
+        src = None
+        for style in scope.recipe:
+            hit = pools[style].get(key)
+            if hit and md5_file(hit) not in placeholders:
+                src = hit
+                break
+        fiche = ss_game_id(meta_dir, key)
+        if src and fiche:
+            groups.setdefault((fiche, md5_file(src)), []).append(key)
+    alias_of = {}
+    for keys in groups.values():
+        if len(keys) < 2:
+            continue
+        winner = min(keys, key=lambda k: elect_key({"key": k}, scope.regions))
+        for k in keys:
+            if k != winner:
+                alias_of[k] = winner
+    return alias_of
+
+
 def stage_assemble(scope, only_system=None, prune=False):
     from PIL import Image
 
@@ -1039,6 +1075,7 @@ def stage_assemble(scope, only_system=None, prune=False):
         syn_rows = {}  # lang -> [(key, text)]
         pack_rows = []  # (key, style, ss_system_id) for manifest.tsv
         made = skipped = stale = blanks = broken = 0
+        alias_of = unify_siblings(meta_dir, pools, placeholders, in_scope, scope)
         for meta_path in sorted(meta_dir.glob("*.json")):
             key = meta_path.stem
             if in_scope is not None and key not in in_scope:
@@ -1063,6 +1100,11 @@ def stage_assemble(scope, only_system=None, prune=False):
                     src, style_used = hit, style
                     break
             if not src:
+                continue
+            if key in alias_of:
+                # a stale file from a build before unification must not stay
+                (out_dir / (key + ".jpg")).unlink(missing_ok=True)
+                manifest.pop((system, key), None)
                 continue
 
             target = out_dir / (key + ".jpg")
@@ -1142,8 +1184,9 @@ def stage_assemble(scope, only_system=None, prune=False):
                     if not line or line.startswith("#"):
                         continue
                     name, crc, size, key = line.split("\t")
+                    key = alias_of.get(key, key)
                     if (out_dir / (key + ".jpg")).is_file():
-                        f.write(line + "\n")
+                        f.write(f"{name}\t{crc}\t{size}\t{key}\n")
                         indexed += 1
 
         # images left over from a previous, wider scope
@@ -1174,6 +1217,8 @@ def stage_assemble(scope, only_system=None, prune=False):
             f"index.tsv with {indexed} variants, "
             f"manifest.tsv with {len(pack_rows)} rows"
             + (f", {stale} meta out of scope" if stale else "")
+            + (f", {len(alias_of)} key(s) unified into a sibling's image"
+               if alias_of else "")
             + (f", {blanks} placeholder(s) discarded" if blanks else "")
             + (f", {broken} unreadable" if broken else ""))
 
