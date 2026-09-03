@@ -54,6 +54,11 @@ that already exists in the wild:
 Keys contain spaces, commas, apostrophes and parentheses; the image filename
 is the key verbatim plus `.jpg`. URL-encode when fetching over HTTP.
 
+One image per game and per box: when several dumps of one game would
+carry a byte-identical box, the pack keeps one file and the other dumps
+are index rows pointing to it. Dumps whose box ScreenScraper holds per
+region keep separate images.
+
 Keys are **stable within a release but not across releases**: No-Intro
 renames dumps, and the pack occasionally changes which dump represents a
 game. Resolve at read time; do not persist keys in your own storage.
@@ -231,52 +236,52 @@ few minutes after a publish.
 
 ### Published systems
 
-`box2d`, as of 1 September 2026. Counts change with every publication; treat
+`box2d`, as of 3 September 2026. Counts change with every publication; treat
 this as a snapshot, not an interface.
 
 | System | Images | db_id | Media base URL |
 |---|---:|---|---|
-| 3DO | 335 | `chipster6502/artworkdb-3do` | https://raw.githubusercontent.com/chipster6502/artworkdb-misc/media-box2d/ |
+| 3DO | 316 | `chipster6502/artworkdb-3do` | https://raw.githubusercontent.com/chipster6502/artworkdb-misc/media-box2d/ |
 | ATARI5200 | 95 | `chipster6502/artworkdb-atari5200` | https://raw.githubusercontent.com/chipster6502/artworkdb-atari/media-box2d/ |
 | ATARI7800 | 66 | `chipster6502/artworkdb-atari7800` | https://raw.githubusercontent.com/chipster6502/artworkdb-atari/media-box2d/ |
-| AmigaCD32 | 150 | `chipster6502/artworkdb-amigacd32` | https://raw.githubusercontent.com/chipster6502/artworkdb-misc/media-box2d/ |
-| Arcade | 4957 | `chipster6502/artworkdb-arcade` | https://raw.githubusercontent.com/chipster6502/artworkdb-arcade/media-box2d/ |
-| Atari2600 | 624 | `chipster6502/artworkdb-atari2600` | https://raw.githubusercontent.com/chipster6502/artworkdb-atari/media-box2d/ |
+| AmigaCD32 | 149 | `chipster6502/artworkdb-amigacd32` | https://raw.githubusercontent.com/chipster6502/artworkdb-misc/media-box2d/ |
+| Arcade | 4620 | `chipster6502/artworkdb-arcade` | https://raw.githubusercontent.com/chipster6502/artworkdb-arcade/media-box2d/ |
+| Atari2600 | 595 | `chipster6502/artworkdb-atari2600` | https://raw.githubusercontent.com/chipster6502/artworkdb-atari/media-box2d/ |
 | AtariLynx | 88 | `chipster6502/artworkdb-atarilynx` | https://raw.githubusercontent.com/chipster6502/artworkdb-atari/media-box2d/ |
-| CD-i | 199 | `chipster6502/artworkdb-cd-i` | https://raw.githubusercontent.com/chipster6502/artworkdb-misc/media-box2d/ |
+| CD-i | 160 | `chipster6502/artworkdb-cd-i` | https://raw.githubusercontent.com/chipster6502/artworkdb-misc/media-box2d/ |
 | Coleco | 165 | `chipster6502/artworkdb-coleco` | https://raw.githubusercontent.com/chipster6502/artworkdb-misc/media-box2d/ |
-| FDS | 206 | `chipster6502/artworkdb-fds` | https://raw.githubusercontent.com/chipster6502/artworkdb-nintendo-consoles/media-box2d/ |
+| FDS | 202 | `chipster6502/artworkdb-fds` | https://raw.githubusercontent.com/chipster6502/artworkdb-nintendo-consoles/media-box2d/ |
 | GAMEBOY | 1035 | `chipster6502/artworkdb-gameboy` | https://raw.githubusercontent.com/chipster6502/artworkdb-nintendo-handhelds/media-box2d/ |
-| GBA | 1637 | `chipster6502/artworkdb-gba` | https://raw.githubusercontent.com/chipster6502/artworkdb-nintendo-handhelds/media-box2d/ |
-| GBC | 961 | `chipster6502/artworkdb-gbc` | https://raw.githubusercontent.com/chipster6502/artworkdb-nintendo-handhelds/media-box2d/ |
+| GBA | 1634 | `chipster6502/artworkdb-gba` | https://raw.githubusercontent.com/chipster6502/artworkdb-nintendo-handhelds/media-box2d/ |
+| GBC | 958 | `chipster6502/artworkdb-gbc` | https://raw.githubusercontent.com/chipster6502/artworkdb-nintendo-handhelds/media-box2d/ |
 | GameGear | 382 | `chipster6502/artworkdb-gamegear` | https://raw.githubusercontent.com/chipster6502/artworkdb-sega/media-box2d/ |
-| Genesis | 1020 | `chipster6502/artworkdb-genesis` | https://raw.githubusercontent.com/chipster6502/artworkdb-sega/media-box2d/ |
-| Intellivision | 156 | `chipster6502/artworkdb-intellivision` | https://raw.githubusercontent.com/chipster6502/artworkdb-misc/media-box2d/ |
-| Jaguar | 57 | `chipster6502/artworkdb-jaguar` | https://raw.githubusercontent.com/chipster6502/artworkdb-atari/media-box2d/ |
-| MegaCD | 249 | `chipster6502/artworkdb-megacd` | https://raw.githubusercontent.com/chipster6502/artworkdb-sega/media-box2d/ |
+| Genesis | 1012 | `chipster6502/artworkdb-genesis` | https://raw.githubusercontent.com/chipster6502/artworkdb-sega/media-box2d/ |
+| Intellivision | 153 | `chipster6502/artworkdb-intellivision` | https://raw.githubusercontent.com/chipster6502/artworkdb-misc/media-box2d/ |
+| Jaguar | 56 | `chipster6502/artworkdb-jaguar` | https://raw.githubusercontent.com/chipster6502/artworkdb-atari/media-box2d/ |
+| MegaCD | 246 | `chipster6502/artworkdb-megacd` | https://raw.githubusercontent.com/chipster6502/artworkdb-sega/media-box2d/ |
 | N64 | 409 | `chipster6502/artworkdb-n64` | https://raw.githubusercontent.com/chipster6502/artworkdb-nintendo-consoles/media-box2d/ |
-| NEOGEO | 173 | `chipster6502/artworkdb-neogeo` | https://raw.githubusercontent.com/chipster6502/artworkdb-snk/media-box2d/ |
-| NES | 1438 | `chipster6502/artworkdb-nes` | https://raw.githubusercontent.com/chipster6502/artworkdb-nintendo-consoles/media-box2d/ |
+| NEOGEO | 171 | `chipster6502/artworkdb-neogeo` | https://raw.githubusercontent.com/chipster6502/artworkdb-snk/media-box2d/ |
+| NES | 1424 | `chipster6502/artworkdb-nes` | https://raw.githubusercontent.com/chipster6502/artworkdb-nintendo-consoles/media-box2d/ |
 | NeoGeo-CD | 97 | `chipster6502/artworkdb-neogeo-cd` | https://raw.githubusercontent.com/chipster6502/artworkdb-snk/media-box2d/ |
 | NeoGeoPocket | 10 | `chipster6502/artworkdb-neogeopocket` | https://raw.githubusercontent.com/chipster6502/artworkdb-snk/media-box2d/ |
 | NeoGeoPocket-Color | 75 | `chipster6502/artworkdb-neogeopocket-color` | https://raw.githubusercontent.com/chipster6502/artworkdb-snk/media-box2d/ |
 | ODYSSEY2 | 83 | `chipster6502/artworkdb-odyssey2` | https://raw.githubusercontent.com/chipster6502/artworkdb-misc/media-box2d/ |
-| PSX | 5352 | `chipster6502/artworkdb-psx` | https://raw.githubusercontent.com/chipster6502/artworkdb-sony/media-box2d/ |
+| PSX | 4867 | `chipster6502/artworkdb-psx` | https://raw.githubusercontent.com/chipster6502/artworkdb-sony/media-box2d/ |
 | S32X | 40 | `chipster6502/artworkdb-s32x` | https://raw.githubusercontent.com/chipster6502/artworkdb-sega/media-box2d/ |
-| SG-1000 | 74 | `chipster6502/artworkdb-sg-1000` | https://raw.githubusercontent.com/chipster6502/artworkdb-sega/media-box2d/ |
+| SG-1000 | 73 | `chipster6502/artworkdb-sg-1000` | https://raw.githubusercontent.com/chipster6502/artworkdb-sega/media-box2d/ |
 | SMS | 343 | `chipster6502/artworkdb-sms` | https://raw.githubusercontent.com/chipster6502/artworkdb-sega/media-box2d/ |
-| SNES | 1803 | `chipster6502/artworkdb-snes` | https://raw.githubusercontent.com/chipster6502/artworkdb-nintendo-consoles/media-box2d/ |
-| Satellaview | 260 | `chipster6502/artworkdb-satellaview` | https://raw.githubusercontent.com/chipster6502/artworkdb-nintendo-consoles/media-box2d/ |
-| Saturn | 1247 | `chipster6502/artworkdb-saturn` | https://raw.githubusercontent.com/chipster6502/artworkdb-sega/media-box2d/ |
+| SNES | 1802 | `chipster6502/artworkdb-snes` | https://raw.githubusercontent.com/chipster6502/artworkdb-nintendo-consoles/media-box2d/ |
+| Satellaview | 149 | `chipster6502/artworkdb-satellaview` | https://raw.githubusercontent.com/chipster6502/artworkdb-nintendo-consoles/media-box2d/ |
+| Saturn | 1219 | `chipster6502/artworkdb-saturn` | https://raw.githubusercontent.com/chipster6502/artworkdb-sega/media-box2d/ |
 | SuperGrafx | 5 | `chipster6502/artworkdb-supergrafx` | https://raw.githubusercontent.com/chipster6502/artworkdb-nec/media-box2d/ |
-| TGFX16 | 302 | `chipster6502/artworkdb-tgfx16` | https://raw.githubusercontent.com/chipster6502/artworkdb-nec/media-box2d/ |
-| TGFX16-CD | 400 | `chipster6502/artworkdb-tgfx16-cd` | https://raw.githubusercontent.com/chipster6502/artworkdb-nec/media-box2d/ |
+| TGFX16 | 301 | `chipster6502/artworkdb-tgfx16` | https://raw.githubusercontent.com/chipster6502/artworkdb-nec/media-box2d/ |
+| TGFX16-CD | 396 | `chipster6502/artworkdb-tgfx16-cd` | https://raw.githubusercontent.com/chipster6502/artworkdb-nec/media-box2d/ |
 | VECTREX | 34 | `chipster6502/artworkdb-vectrex` | https://raw.githubusercontent.com/chipster6502/artworkdb-misc/media-box2d/ |
 | VirtualBoy | 27 | `chipster6502/artworkdb-virtualboy` | https://raw.githubusercontent.com/chipster6502/artworkdb-nintendo-consoles/media-box2d/ |
 | WonderSwan | 111 | `chipster6502/artworkdb-wonderswan` | https://raw.githubusercontent.com/chipster6502/artworkdb-misc/media-box2d/ |
 | WonderSwanColor | 91 | `chipster6502/artworkdb-wonderswancolor` | https://raw.githubusercontent.com/chipster6502/artworkdb-misc/media-box2d/ |
 
-**39 systems, 24,756 images, 2.49 GB.** Append
+**39 systems, 23,659 images, 2.39 GB.** Append
 `docs/<System>/Artwork/<key>.jpg` to a media base URL to fetch one image;
 swap `media-box2d` for another style branch to get that style.
 

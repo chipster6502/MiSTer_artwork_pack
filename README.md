@@ -5,7 +5,7 @@ Downloader. Images are fetched from ScreenScraper once, offline, and served as
 plain files on the SD card — consumers need no network access and no
 credentials.
 
-**Published today:** 39 systems, 24,756 images, 2.49 GB, in the `box2d`
+**Published today:** 39 systems, 23,659 images, 2.39 GB, in the `box2d`
 style. The full list, with a `db_id` and repository per system, is in
 [PACK_FORMAT.md](PACK_FORMAT.md).
 
@@ -104,9 +104,10 @@ deleting a file forces only that piece to be rebuilt. `--prune` removes
 images whose key left the scope; `--retry-miss` re-queries games previously
 marked as misses, which is how an edited `overrides.tsv` takes effect.
 
-Two reviewed tables refine a build: `overrides.tsv` pins the ScreenScraper
-subsystem for a key whose name resolves elsewhere, and `names.tsv` fixes a
-display name where ScreenScraper's own is wrong. `neogeo_dat.py` turns the
+Three reviewed tables refine a build: `overrides.tsv` pins the ScreenScraper
+subsystem for a key whose name resolves elsewhere, `names.tsv` fixes a
+display name where ScreenScraper's own is wrong, and `rotations.tsv` turns
+a scan that ScreenScraper stores sideways. `neogeo_dat.py` turns the
 Neo Geo core's `romsets.xml` into the Parent/Clone DAT the builder reads.
 `validate_db.py` checks a generated database against the Downloader's own
 parser.

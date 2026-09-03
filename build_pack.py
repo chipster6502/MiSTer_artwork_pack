@@ -894,6 +894,26 @@ def load_names(path=Path("names.tsv")):
     return table
 
 
+def load_rotations(path=Path("rotations.tsv")):
+    """(media, system, key) -> degrees clockwise from rotations.tsv. Some SS
+    scans of landscape boxes are stored sideways; turning them here keeps
+    the fix through re-fetches, which the pool would lose."""
+    table = {}
+    if not Path(path).is_file():
+        return table
+    for line in Path(path).read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = line.split("\t")
+        if len(parts) >= 4:
+            try:
+                table[(parts[0], parts[1], parts[2])] = int(parts[3])
+            except ValueError:
+                die(f"rotations.tsv: bad degrees in '{line}'")
+    return table
+
+
 # SS files everything that is not a game under one catch-all entry with this
 # name prefix. Rejecting by marker is exact; the placeholder threshold is luck.
 NONGAME_MARKER = "zzz(notgame)"
@@ -1047,6 +1067,9 @@ def stage_assemble(scope, only_system=None, prune=False):
     forced_names = load_names()
     if forced_names:
         log(f"[assemble] {len(forced_names)} forced name(s) loaded")
+    rotations = load_rotations()
+    if rotations:
+        log(f"[assemble] {len(rotations)} rotation(s) loaded")
 
     # per style: rows are keyed by (system, key)
     manifest_path = Path(f"out/manifest-{scope.style_label}.csv")
@@ -1122,6 +1145,10 @@ def stage_assemble(scope, only_system=None, prune=False):
                             img = flat
                         else:
                             img = img.convert("RGB")
+                        turn = rotations.get((style_used, system, key))
+                        if turn:
+                            # Pillow turns counter-clockwise; the table is clockwise
+                            img = img.rotate(-turn, expand=True)
                         w, h = img.size
                         if max(w, h) > scope.max_px:
                             ratio = scope.max_px / max(w, h)
