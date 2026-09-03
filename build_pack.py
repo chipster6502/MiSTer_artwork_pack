@@ -148,6 +148,7 @@ class Scope:
         if not self.softname:
             die("scope.ini: [screenscraper] softname is required "
                 "(must match the app name registered on ScreenScraper)")
+        self.excludes = load_excludes()
         if not self.systems:
             die("scope.ini: no [system:<Name>] sections found")
 
@@ -609,6 +610,21 @@ def load_overrides(path=Path("overrides.tsv")):
     return table
 
 
+def load_excludes(path=Path("excludes.tsv")):
+    """{(system, key)} from excludes.tsv: keys reviewed out of the pack."""
+    table = set()
+    if not Path(path).is_file():
+        return table
+    for line in Path(path).read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = line.split("\t")
+        if len(parts) >= 2:
+            table.add((parts[0], parts[1]))
+    return table
+
+
 def query_game(scope, creds, system_id, entry):
     """One jeuInfos call. Returns (jeu_or_None, raw_text)."""
     params = {
@@ -669,9 +685,12 @@ def stage_identify(scope, creds, only_system=None, limit=0, retry_miss=False):
         log(f"[identify] {system}: {len(entries)} entries "
             f"(ss_id={cfg['ss_id']}, kind={cfg['kind']})")
 
-        done = 0
+        done = excluded = 0
         todo = []
         for e in entries:
+            if (system, e["key"]) in scope.excludes:
+                excluded += 1
+                continue
             marker = meta_dir / (e["key"] + ".miss")
             if marker.is_file() and retry_miss:
                 # .miss is cached like a hit; clearing it lets overrides apply
@@ -725,7 +744,8 @@ def stage_identify(scope, creds, only_system=None, limit=0, retry_miss=False):
 
         log(f"[identify] {system}: {hits} new, {miss} miss, "
             f"{rejected} out-of-family, {nongame} non-game, "
-            f"{done} already cached")
+            f"{done} already cached"
+            + (f", {excluded} excluded" if excluded else ""))
 
 
 # ----------------------------------------------------------------------------
@@ -786,7 +806,8 @@ def stage_fetch(scope, creds, only_system=None):
         if not meta_dir.is_dir():
             log(f"[fetch] {system}: no meta yet, run identify first")
             continue
-        metas = sorted(meta_dir.glob("*.json"))
+        metas = [m for m in sorted(meta_dir.glob("*.json"))
+                 if (system, m.stem) not in scope.excludes]
         log(f"[fetch] {system}: {len(metas)} identified games, "
             f"recipe {' > '.join(scope.recipe)}")
 
@@ -1041,6 +1062,8 @@ def unify_siblings(meta_dir, pools, placeholders, in_scope, scope):
         key = meta_path.stem
         if in_scope is not None and key not in in_scope:
             continue
+        if (meta_dir.name, key) in scope.excludes:
+            continue
         src = None
         for style in scope.recipe:
             hit = pools[style].get(key)
@@ -1097,12 +1120,18 @@ def stage_assemble(scope, only_system=None, prune=False):
         rows = []
         syn_rows = {}  # lang -> [(key, text)]
         pack_rows = []  # (key, style, ss_system_id) for manifest.tsv
-        made = skipped = stale = blanks = broken = 0
+        made = skipped = stale = blanks = broken = excluded = 0
         alias_of = unify_siblings(meta_dir, pools, placeholders, in_scope, scope)
         for meta_path in sorted(meta_dir.glob("*.json")):
             key = meta_path.stem
             if in_scope is not None and key not in in_scope:
                 stale += 1
+                continue
+            if (system, key) in scope.excludes:
+                # metadata may linger from before the exclusion
+                (out_dir / (key + ".jpg")).unlink(missing_ok=True)
+                manifest.pop((system, key), None)
+                excluded += 1
                 continue
             jeu = json.loads(meta_path.read_text(encoding="utf-8"))
             name, year, genre, dev, players, synopsis = game_info_row(jeu, scope)
@@ -1244,6 +1273,7 @@ def stage_assemble(scope, only_system=None, prune=False):
             f"index.tsv with {indexed} variants, "
             f"manifest.tsv with {len(pack_rows)} rows"
             + (f", {stale} meta out of scope" if stale else "")
+            + (f", {excluded} excluded" if excluded else "")
             + (f", {len(alias_of)} key(s) unified into a sibling's image"
                if alias_of else "")
             + (f", {blanks} placeholder(s) discarded" if blanks else "")

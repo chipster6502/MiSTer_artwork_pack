@@ -104,13 +104,39 @@ deleting a file forces only that piece to be rebuilt. `--prune` removes
 images whose key left the scope; `--retry-miss` re-queries games previously
 marked as misses, which is how an edited `overrides.tsv` takes effect.
 
-Three reviewed tables refine a build: `overrides.tsv` pins the ScreenScraper
-subsystem for a key whose name resolves elsewhere, `names.tsv` fixes a
-display name where ScreenScraper's own is wrong, and `rotations.tsv` turns
-a scan that ScreenScraper stores sideways. `neogeo_dat.py` turns the
+Four reviewed tables refine a build, and together with the DATs they are
+what makes it reproducible: `overrides.tsv` pins the ScreenScraper subsystem
+for a key whose name resolves elsewhere, `names.tsv` fixes a display name
+where ScreenScraper's own is wrong, `rotations.tsv` turns a scan that
+ScreenScraper stores sideways, and `excludes.tsv` lists the keys reviewed
+out of the pack — a demo, a hardware test, a box that is not the game's —
+which `identify` never queries again. `neogeo_dat.py` turns the
 Neo Geo core's `romsets.xml` into the Parent/Clone DAT the builder reads.
-`validate_db.py` checks a generated database against the Downloader's own
-parser.
+
+A second style mirrors the first: `--like box2d` makes `fetch` request only
+the keys the `box2d` pack serves and `assemble` write the same keys through
+the same `index.tsv`, copying the `box2d` image where the new style has
+none — `manifest.tsv` records which style each image came from.
+
+## Helpers
+
+Around the four stages, in the order they are used:
+
+| Script | Does |
+|---|---|
+| `stage_dats.sh` | copies the No-Intro DATs `scope.ini` expects from an unpacked No-Intro pack into `dats/`, under stable names; reports first, `apply` copies |
+| `bootstrap_repos.sh` | clones every `artworkdb-<group>` repository into `../pub-<group>` and creates the `media-<style>` and `db` branches |
+| `exclude_keys.py` | adds reviewed keys to `excludes.tsv` and deletes what was already built for them |
+| `rotate_keys.py` | registers rotations in `rotations.tsv` for keys reviewed as sideways and deletes their built images so `assemble` re-encodes them |
+| `publish.sh` | pushes one system to its media branch and its database to the `db` branch; refuses if anything outside that system would change |
+| `republish_all.sh` | runs assemble–package–publish–verify for every system in `scope.ini`, stopping at the first failure |
+| `tools/pack_index.py` | prints the *Published systems* table of `PACK_FORMAT.md` from the built databases, so the document is pasted, never typed |
+| `validate_db.py` | parses a generated database with the Downloader's own code |
+| `tools/dup_classify.py` | a measurement, not a step: checks that no two images in a system are the same box, and lists the byte-identical pairs across fiches for review |
+
+Both key-list scripts read the keys from a file, one per line, because
+No-Intro names carry parentheses, quotes and `!!` that the shell mangles even
+when quoted.
 
 ## Configuration
 

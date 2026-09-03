@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
+# Copy the No-Intro DATs scope.ini expects from an unpacked No-Intro/ pack
+# into dats/ under stable names. Reports first; "apply" copies. A DAT that
+# is already there is never overwritten: replace it by hand on purpose.
 set -euo pipefail
 
 MODE="${1:-report}"
 PACK_DIR="$(cd "$(dirname "$0")" && pwd)"
 SRC="$PACK_DIR/No-Intro"
 DST="$PACK_DIR/dats"
-[ -d "$SRC" ] || { echo "falta $SRC"; exit 1; }
+[ -d "$SRC" ] || { echo "missing $SRC"; exit 1; }
 mkdir -p "$DST"
 
 MAP=(
@@ -44,24 +47,24 @@ for entry in "${MAP[@]}"; do
     dest="${entry##*|}"
     mapfile -t matches < <(compgen -G "$SRC/$pat" || true)
     if [ ${#matches[@]} -eq 0 ]; then
-        echo "FALTA    $dest  <-  $pat"
+        echo "MISSING  $dest  <-  $pat"
         problems=$((problems + 1))
     elif [ ${#matches[@]} -gt 1 ]; then
-        echo "AMBIGUO  $dest  <-  ${#matches[@]} candidatos:"
+        echo "AMBIGUOUS $dest  <-  ${#matches[@]} candidates:"
         printf '           %s\n' "${matches[@]##*/}"
         problems=$((problems + 1))
     elif [ -f "$DST/$dest" ]; then
-        echo "YA       $dest"
+        echo "PRESENT  $dest"
     elif [ "$MODE" = "apply" ]; then
         cp "${matches[0]}" "$DST/$dest"
-        echo "COPIADO  $dest  <-  ${matches[0]##*/}"
+        echo "COPIED   $dest  <-  ${matches[0]##*/}"
     else
         echo "OK       $dest  <-  ${matches[0]##*/}"
     fi
 done
 
 if [ "$problems" -gt 0 ]; then
-    echo "--- $problems entrada(s) sin resolver: ajusta el patron en MAP y repite"
+    echo "--- $problems unresolved entry(ies): adjust the pattern in MAP and rerun"
     exit 1
 fi
-[ "$MODE" = "apply" ] || echo "--- todo resuelto; ejecuta: stage_dats.sh apply"
+[ "$MODE" = "apply" ] || echo "--- all resolved; run: stage_dats.sh apply"
