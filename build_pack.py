@@ -798,7 +798,7 @@ def with_auth(url, creds, softname):
     return url + sep + extra
 
 
-def stage_fetch(scope, creds, only_system=None):
+def stage_fetch(scope, creds, only_system=None, like=None):
     for system, cfg in scope.systems.items():
         if only_system and system != only_system:
             continue
@@ -811,12 +811,17 @@ def stage_fetch(scope, creds, only_system=None):
         log(f"[fetch] {system}: {len(metas)} identified games, "
             f"recipe {' > '.join(scope.recipe)}")
 
-        cached = 0
+        # the reference's unified siblings and dropped placeholders would
+        # cost a request each and never reach a pack
+        wanted = reference_pack(like, system)[0] if like else None
+        cached = unwanted = 0
         pools = {style: pool_index(style, system) for style in scope.recipe}
         todo = []
         for meta_path in metas:
             key = meta_path.stem
-            if any(pools[style].get(key) for style in scope.recipe):
+            if wanted is not None and key not in wanted:
+                unwanted += 1
+            elif any(pools[style].get(key) for style in scope.recipe):
                 cached += 1
             else:
                 todo.append(meta_path)
@@ -855,7 +860,8 @@ def stage_fetch(scope, creds, only_system=None):
         got = outcomes.count("got")
         none = outcomes.count("none")
 
-        log(f"[fetch] {system}: {got} downloaded, {cached} cached, {none} without media")
+        log(f"[fetch] {system}: {got} downloaded, {cached} cached, {none} without media"
+            + (f", {unwanted} not in {like}" if like else ""))
 
 
 # ----------------------------------------------------------------------------
@@ -1046,6 +1052,44 @@ def save_within_block(img, target, quality, block=ALLOC_BLOCK,
     return quality
 
 
+def reference_pack(like, system):
+    """(keys, alias_of, styles, art_dir) of the pack this build mirrors: the
+    keys carrying an image in its manifest, the index remaps it published,
+    the style each image came from, and where its images are.
+
+    Every style of a system serves the same keys through the same index, so
+    switching styles never loses a game; a key this style cannot serve
+    borrows the reference image, and manifest.tsv says so.
+    """
+    manifest = load_manifest(Path(f"out/manifest-{like}.csv"), MANIFEST_FIELDS)
+    styles = {k: row["style"] for (s, k), row in manifest.items()
+              if s == system}
+    if not styles:
+        die(f"--like {like}: no manifest rows for {system}; "
+            f"assemble {like} first")
+    art = Path(f"out/media-{like}/docs") / system / "Artwork"
+
+    def key_by_name(path):
+        table = {}
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if line and not line.startswith("#"):
+                name, _, _, key = line.split("\t")
+                table[name] = key
+        return table
+
+    alias_of = {}
+    members_path = Path("work/meta") / system / "_members.tsv"
+    if members_path.is_file():
+        if not (art / "index.tsv").is_file():
+            die(f"--like {like}: {art / 'index.tsv'} missing; "
+                f"assemble {like} first")
+        published = key_by_name(art / "index.tsv")
+        for name, key in key_by_name(members_path).items():
+            if name in published and published[name] != key:
+                alias_of[key] = published[name]
+    return set(styles), alias_of, styles, art
+
+
 def unify_siblings(meta_dir, pools, placeholders, in_scope, scope):
     """{loser key: winner key} for keys of one system that share a fiche AND
     a byte-identical source image.
@@ -1084,7 +1128,7 @@ def unify_siblings(meta_dir, pools, placeholders, in_scope, scope):
     return alias_of
 
 
-def stage_assemble(scope, only_system=None, prune=False):
+def stage_assemble(scope, only_system=None, prune=False, like=None):
     from PIL import Image
 
     forced_names = load_names()
@@ -1121,7 +1165,12 @@ def stage_assemble(scope, only_system=None, prune=False):
         syn_rows = {}  # lang -> [(key, text)]
         pack_rows = []  # (key, style, ss_system_id) for manifest.tsv
         made = skipped = stale = blanks = broken = excluded = 0
-        alias_of = unify_siblings(meta_dir, pools, placeholders, in_scope, scope)
+        ref_keys = ref_art = None
+        borrowed = set()
+        if like:
+            ref_keys, alias_of, ref_styles, ref_art = reference_pack(like, system)
+        else:
+            alias_of = unify_siblings(meta_dir, pools, placeholders, in_scope, scope)
         for meta_path in sorted(meta_dir.glob("*.json")):
             key = meta_path.stem
             if in_scope is not None and key not in in_scope:
@@ -1151,17 +1200,27 @@ def stage_assemble(scope, only_system=None, prune=False):
                         continue
                     src, style_used = hit, style
                     break
-            if not src:
-                continue
             if key in alias_of:
                 # a stale file from a build before unification must not stay
                 (out_dir / (key + ".jpg")).unlink(missing_ok=True)
                 manifest.pop((system, key), None)
                 continue
+            if ref_keys is not None:
+                if key not in ref_keys:
+                    continue
+                if not src:
+                    src, style_used = ref_art / (key + ".jpg"), ref_styles[key]
+                    borrowed.add(key)
+            if not src:
+                continue
 
             target = out_dir / (key + ".jpg")
             if target.is_file():
                 skipped += 1
+            elif key in borrowed:
+                # already normalised; a second JPEG pass would only lose quality
+                target.write_bytes(src.read_bytes())
+                made += 1
             else:
                 try:
                     with Image.open(src) as img:
@@ -1229,6 +1288,30 @@ def stage_assemble(scope, only_system=None, prune=False):
                 for key, text in syn_rows[lang]:
                     f.write(f"{key}\t{text}\n")
 
+        # images left over from a previous, wider scope; before the index,
+        # which must not list a file this run deletes
+        if in_scope is not None:
+            # a manifest row exists iff its image does: an excluded key or a
+            # dropped placeholder stays in scope but has no file
+            for row in [r for r in manifest
+                        if r[0] == system
+                        and (r[1] not in in_scope
+                             or (ref_keys is not None and r[1] not in ref_keys)
+                             or not (out_dir / (r[1] + ".jpg")).is_file())]:
+                manifest.pop(row, None)
+            orphans = [p for p in out_dir.glob("*.jpg")
+                       if p.stem not in in_scope
+                       or (ref_keys is not None and p.stem not in ref_keys)]
+            if prune:
+                for orphan in orphans:
+                    orphan.unlink()
+            if orphans:
+                names = ", ".join(sorted(p.stem for p in orphans)[:5])
+                log(f"[assemble] {system}: {len(orphans)} image(s) out of "
+                    f"scope ({names}{'...' if len(orphans) > 5 else ''}) "
+                    + ("deleted" if prune else
+                       "- run with --prune to delete them"))
+
         # every dump (name + crc/size) -> the image actually in the pack
         members_path = meta_dir / "_members.tsv"
         indexed = 0
@@ -1245,27 +1328,6 @@ def stage_assemble(scope, only_system=None, prune=False):
                         f.write(f"{name}\t{crc}\t{size}\t{key}\n")
                         indexed += 1
 
-        # images left over from a previous, wider scope
-        if in_scope is not None:
-            # a manifest row exists iff its image does: an excluded key or a
-            # dropped placeholder stays in scope but has no file
-            for row in [r for r in manifest
-                        if r[0] == system
-                        and (r[1] not in in_scope
-                             or not (out_dir / (r[1] + ".jpg")).is_file())]:
-                manifest.pop(row, None)
-            orphans = [p for p in out_dir.glob("*.jpg")
-                       if p.stem not in in_scope]
-            if prune:
-                for orphan in orphans:
-                    orphan.unlink()
-            if orphans:
-                names = ", ".join(sorted(p.stem for p in orphans)[:5])
-                log(f"[assemble] {system}: {len(orphans)} image(s) out of "
-                    f"scope ({names}{'...' if len(orphans) > 5 else ''}) "
-                    + ("deleted" if prune else
-                       "- run with --prune to delete them"))
-
         lang_list = ", ".join(sorted(syn_rows)) or "none"
         log(f"[assemble] {system}: {made} images written, {skipped} kept, "
             f"gameinfo.tsv with {len(rows)} rows, "
@@ -1276,6 +1338,7 @@ def stage_assemble(scope, only_system=None, prune=False):
             + (f", {excluded} excluded" if excluded else "")
             + (f", {len(alias_of)} key(s) unified into a sibling's image"
                if alias_of else "")
+            + (f", {len(borrowed)} borrowed from {like}" if borrowed else "")
             + (f", {blanks} placeholder(s) discarded" if blanks else "")
             + (f", {broken} unreadable" if broken else ""))
 
@@ -1566,9 +1629,18 @@ def main():
     parser.add_argument("--retry-miss", action="store_true",
                         help="re-query entries previously marked .miss "
                              "(use after editing overrides.tsv)")
+    parser.add_argument("--like", default=None, metavar="STYLE",
+                        help="mirror another style's pack: same keys, same "
+                             "index, its image where this style has none "
+                             "(fetch, assemble)")
     args = parser.parse_args()
 
     scope = Scope(args.scope, args.style)
+    if args.like:
+        if args.like not in scope.styles:
+            die(f"--like: unknown style '{args.like}'")
+        if args.like == scope.style_label:
+            die("--like must name a different style")
     needs_net = args.stage in ("identify", "fetch", "all", "systems",
                                "resolve")
     # verify only reads public raw URLs, so it needs no credentials
@@ -1586,9 +1658,9 @@ def main():
     if args.stage in ("identify", "all"):
         stage_identify(scope, creds, args.system, args.limit, args.retry_miss)
     if args.stage in ("fetch", "all"):
-        stage_fetch(scope, creds, args.system)
+        stage_fetch(scope, creds, args.system, args.like)
     if args.stage in ("assemble", "all"):
-        stage_assemble(scope, args.system, args.prune)
+        stage_assemble(scope, args.system, args.prune, args.like)
     if args.stage in ("package", "all"):
         stage_package(scope, args.system)
 
