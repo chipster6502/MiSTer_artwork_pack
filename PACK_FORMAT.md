@@ -255,7 +255,7 @@ this as a snapshot, not an interface.
 | Jaguar | 57 | `chipster6502/artworkdb-jaguar` | https://raw.githubusercontent.com/chipster6502/artworkdb-atari/media-box2d/ |
 | MegaCD | 249 | `chipster6502/artworkdb-megacd` | https://raw.githubusercontent.com/chipster6502/artworkdb-sega/media-box2d/ |
 | N64 | 409 | `chipster6502/artworkdb-n64` | https://raw.githubusercontent.com/chipster6502/artworkdb-nintendo-consoles/media-box2d/ |
-| NEOGEO | 169 | `chipster6502/artworkdb-neogeo` | https://raw.githubusercontent.com/chipster6502/artworkdb-snk/media-box2d/ |
+| NEOGEO | 173 | `chipster6502/artworkdb-neogeo` | https://raw.githubusercontent.com/chipster6502/artworkdb-snk/media-box2d/ |
 | NES | 1438 | `chipster6502/artworkdb-nes` | https://raw.githubusercontent.com/chipster6502/artworkdb-nintendo-consoles/media-box2d/ |
 | NeoGeo-CD | 97 | `chipster6502/artworkdb-neogeo-cd` | https://raw.githubusercontent.com/chipster6502/artworkdb-snk/media-box2d/ |
 | NeoGeoPocket | 10 | `chipster6502/artworkdb-neogeopocket` | https://raw.githubusercontent.com/chipster6502/artworkdb-snk/media-box2d/ |
@@ -276,7 +276,7 @@ this as a snapshot, not an interface.
 | WonderSwan | 111 | `chipster6502/artworkdb-wonderswan` | https://raw.githubusercontent.com/chipster6502/artworkdb-misc/media-box2d/ |
 | WonderSwanColor | 91 | `chipster6502/artworkdb-wonderswancolor` | https://raw.githubusercontent.com/chipster6502/artworkdb-misc/media-box2d/ |
 
-**39 systems, 24,752 images, 2.49 GB.** Append
+**39 systems, 24,756 images, 2.49 GB.** Append
 `docs/<System>/Artwork/<key>.jpg` to a media base URL to fetch one image;
 swap `media-box2d` for another style branch to get that style.
 

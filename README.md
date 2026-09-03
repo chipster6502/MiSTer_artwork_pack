@@ -5,7 +5,7 @@ Downloader. Images are fetched from ScreenScraper once, offline, and served as
 plain files on the SD card — consumers need no network access and no
 credentials.
 
-**Published today:** 39 systems, 24,752 images, 2.49 GB, in the `box2d`
+**Published today:** 39 systems, 24,756 images, 2.49 GB, in the `box2d`
 style. The full list, with a `db_id` and repository per system, is in
 [PACK_FORMAT.md](PACK_FORMAT.md).
 
