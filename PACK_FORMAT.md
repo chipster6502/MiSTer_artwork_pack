@@ -204,6 +204,13 @@ the **same paths** and share the same `db_id`, so consumers read whatever is
 there and never need to know which style is installed — `manifest.tsv` says,
 if it matters.
 
+The three are published complete and serve **the same keys through the same
+`index.tsv`**: switching styles is a clean replacement, never a game gained
+or lost. Where a style has no image of its own for a game — ScreenScraper
+holds none, or the one it holds was reviewed as unusable — the image comes
+from another style rather than being left out, and `manifest.tsv` records
+which style it came from.
+
 ## Distribution
 
 Media lives in `artworkdb-<group>` repositories, one per hardware family,
@@ -236,7 +243,7 @@ few minutes after a publish.
 
 ### Published systems
 
-`box2d`, as of 3 September 2026. Counts change with every publication; treat
+`box2d`, as of 4 September 2026. Counts change with every publication; treat
 this as a snapshot, not an interface.
 
 | System | Images | db_id | Media base URL |
@@ -245,7 +252,7 @@ this as a snapshot, not an interface.
 | ATARI5200 | 95 | `chipster6502/artworkdb-atari5200` | https://raw.githubusercontent.com/chipster6502/artworkdb-atari/media-box2d/ |
 | ATARI7800 | 66 | `chipster6502/artworkdb-atari7800` | https://raw.githubusercontent.com/chipster6502/artworkdb-atari/media-box2d/ |
 | AmigaCD32 | 149 | `chipster6502/artworkdb-amigacd32` | https://raw.githubusercontent.com/chipster6502/artworkdb-misc/media-box2d/ |
-| Arcade | 4620 | `chipster6502/artworkdb-arcade` | https://raw.githubusercontent.com/chipster6502/artworkdb-arcade/media-box2d/ |
+| Arcade | 4619 | `chipster6502/artworkdb-arcade` | https://raw.githubusercontent.com/chipster6502/artworkdb-arcade/media-box2d/ |
 | Atari2600 | 595 | `chipster6502/artworkdb-atari2600` | https://raw.githubusercontent.com/chipster6502/artworkdb-atari/media-box2d/ |
 | AtariLynx | 88 | `chipster6502/artworkdb-atarilynx` | https://raw.githubusercontent.com/chipster6502/artworkdb-atari/media-box2d/ |
 | CD-i | 160 | `chipster6502/artworkdb-cd-i` | https://raw.githubusercontent.com/chipster6502/artworkdb-misc/media-box2d/ |
@@ -281,7 +288,7 @@ this as a snapshot, not an interface.
 | WonderSwan | 111 | `chipster6502/artworkdb-wonderswan` | https://raw.githubusercontent.com/chipster6502/artworkdb-misc/media-box2d/ |
 | WonderSwanColor | 91 | `chipster6502/artworkdb-wonderswancolor` | https://raw.githubusercontent.com/chipster6502/artworkdb-misc/media-box2d/ |
 
-**39 systems, 23,659 images, 2.39 GB.** Append
+**39 systems, 23,658 images, 2.39 GB** in `box2d`, 2.14 GB in `box3d`, 2.04 GB in `mixrbv2`. Append
 `docs/<System>/Artwork/<key>.jpg` to a media base URL to fetch one image;
 swap `media-box2d` for another style branch to get that style.
 

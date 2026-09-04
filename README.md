@@ -5,8 +5,10 @@ Downloader. Images are fetched from ScreenScraper once, offline, and served as
 plain files on the SD card — consumers need no network access and no
 credentials.
 
-**Published today:** 39 systems, 23,659 images, 2.39 GB, in the `box2d`
-style. The full list, with a `db_id` and repository per system, is in
+**Published today:** 39 systems, 23,658 images, in all three styles —
+2.39 GB in `box2d`, 2.14 GB in `box3d`, 2.04 GB in `mixrbv2`. The three
+serve the same games through the same index, so switching styles is a clean
+replacement. The full list, with a `db_id` and repository per system, is in
 [PACK_FORMAT.md](PACK_FORMAT.md).
 
 This repository holds the builder. The images themselves live in separate
@@ -49,8 +51,8 @@ there and never need to know which.
 | `mixrbv2` | screenshot inside a TV frame | <img src="https://raw.githubusercontent.com/chipster6502/artworkdb-sega/media-mixrbv2/docs/Genesis/Artwork/Sonic%20The%20Hedgehog%20%28USA%2C%20Europe%29.jpg" height="200"> |
 
 All three write the same path and share a `db_id`, so switching styles is a
-clean replacement rather than two databases fighting over one file. `box2d`
-is complete; `box3d` and `mixrbv2` are published for Genesis only so far.
+clean replacement rather than two databases fighting over one file. All
+three are published for every system in the table.
 
 ## Installing
 
@@ -104,13 +106,15 @@ deleting a file forces only that piece to be rebuilt. `--prune` removes
 images whose key left the scope; `--retry-miss` re-queries games previously
 marked as misses, which is how an edited `overrides.tsv` takes effect.
 
-Four reviewed tables refine a build, and together with the DATs they are
+Five reviewed tables refine a build, and together with the DATs they are
 what makes it reproducible: `overrides.tsv` pins the ScreenScraper subsystem
 for a key whose name resolves elsewhere, `names.tsv` fixes a display name
 where ScreenScraper's own is wrong, `rotations.tsv` turns a scan that
-ScreenScraper stores sideways, and `excludes.tsv` lists the keys reviewed
-out of the pack — a demo, a hardware test, a box that is not the game's —
-which `identify` never queries again. `neogeo_dat.py` turns the
+ScreenScraper stores sideways, `excludes.tsv` lists the keys reviewed out of
+the pack — a demo, a hardware test, a box that is not the game's — which
+`identify` never queries again, and `media_rejects.tsv` refuses one media of
+one game without dropping the key, so a bad mix costs that game its mix and
+nothing else. `neogeo_dat.py` turns the
 Neo Geo core's `romsets.xml` into the Parent/Clone DAT the builder reads.
 
 A second style mirrors the first: `--like box2d` makes `fetch` request only
@@ -128,6 +132,7 @@ Around the four stages, in the order they are used:
 | `bootstrap_repos.sh` | clones every `artworkdb-<group>` repository into `../pub-<group>` and creates the `media-<style>` and `db` branches |
 | `exclude_keys.py` | adds reviewed keys to `excludes.tsv` and deletes what was already built for them |
 | `rotate_keys.py` | registers rotations in `rotations.tsv` for keys reviewed as sideways and deletes their built images so `assemble` re-encodes them |
+| `reject_media.py` | registers a refused media in `media_rejects.tsv` and deletes only the images each style's manifest attributes to it |
 | `publish.sh` | pushes one system to its media branch and its database to the `db` branch; refuses if anything outside that system would change |
 | `republish_all.sh` | runs assemble–package–publish–verify for every system in `scope.ini`, stopping at the first failure |
 | `tools/pack_index.py` | prints the *Published systems* table of `PACK_FORMAT.md` from the built databases, so the document is pasted, never typed |
