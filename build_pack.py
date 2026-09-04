@@ -149,6 +149,7 @@ class Scope:
             die("scope.ini: [screenscraper] softname is required "
                 "(must match the app name registered on ScreenScraper)")
         self.excludes = load_excludes()
+        self.media_rejects = load_media_rejects()
         if not self.systems:
             die("scope.ini: no [system:<Name>] sections found")
 
@@ -832,6 +833,8 @@ def stage_fetch(scope, creds, only_system=None, like=None):
             medias = jeu.get("medias") or []
             media = style_used = None
             for style in scope.recipe:
+                if (style, system, key) in scope.media_rejects:
+                    continue
                 media = pick_media(medias, style, scope.regions,
                                   key_region(key))
                 if media:
@@ -918,6 +921,23 @@ def load_names(path=Path("names.tsv")):
             table[(parts[0], parts[1])] = parts[2].strip()
         elif len(parts) == 2:
             table[(None, parts[0])] = parts[1].strip()
+    return table
+
+
+def load_media_rejects(path=Path("media_rejects.tsv")):
+    """{(media, system, key)} from media_rejects.tsv: medias reviewed as
+    unusable for one game. Not the same as an excluded key, which leaves
+    the pack entirely: here only this media is refused."""
+    table = set()
+    if not Path(path).is_file():
+        return table
+    for line in Path(path).read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = line.split("\t")
+        if len(parts) >= 3:
+            table.add((parts[0], parts[1], parts[2]))
     return table
 
 
@@ -1164,7 +1184,7 @@ def stage_assemble(scope, only_system=None, prune=False, like=None):
         rows = []
         syn_rows = {}  # lang -> [(key, text)]
         pack_rows = []  # (key, style, ss_system_id) for manifest.tsv
-        made = skipped = stale = blanks = broken = excluded = 0
+        made = skipped = stale = blanks = broken = excluded = refused = 0
         ref_keys = ref_art = None
         borrowed = set()
         if like:
@@ -1194,6 +1214,9 @@ def stage_assemble(scope, only_system=None, prune=False, like=None):
             for style in scope.recipe:
                 hit = pools[style].get(key)
                 if hit:
+                    if (style, system, key) in scope.media_rejects:
+                        refused += 1
+                        continue
                     # an empty template is worse than no image at all
                     if md5_file(hit) in placeholders:
                         blanks += 1
@@ -1335,6 +1358,7 @@ def stage_assemble(scope, only_system=None, prune=False, like=None):
             f"index.tsv with {indexed} variants, "
             f"manifest.tsv with {len(pack_rows)} rows"
             + (f", {stale} meta out of scope" if stale else "")
+            + (f", {refused} media refused" if refused else "")
             + (f", {excluded} excluded" if excluded else "")
             + (f", {len(alias_of)} key(s) unified into a sibling's image"
                if alias_of else "")
