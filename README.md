@@ -1,9 +1,10 @@
 # MiSTer Artwork Pack
 
 Builds game artwork packs for MiSTer FPGA, distributed through the standard
-Downloader. Images are fetched from ScreenScraper once, offline, and served as
-plain files on the SD card — consumers need no network access and no
-credentials.
+Downloader and selectable from **Update All** (2.10 or newer) under
+*Extra Content → Game Artwork DBs*. Images are fetched from ScreenScraper
+once, offline, and served as plain files on the SD card — consumers need no
+network access and no credentials.
 
 **Published today:** 39 systems, 23,658 images, in all three styles —
 2.39 GB in `box2d`, 2.14 GB in `box3d`, 2.04 GB in `mixrbv2`. The three
@@ -56,8 +57,29 @@ three are published for every system in the table.
 
 ## Installing
 
-The usual route will be Update All, once the toggles exist. Until then, add
-one section per system to `downloader.ini`. The `db_url` selects the style:
+### From Update All (recommended)
+
+Update All 2.10 lists every pack. Run *Update All* from the Scripts menu,
+press **UP** during the countdown to open the settings, and go to
+**Extra Content → Game Artwork DBs**:
+
+- **Select All** enables every system; each entry below it toggles one.
+- **Style for Selected DBs** sets the style for everything selected. Each
+  system can also carry its own style; the same three names appear in both
+  places: **2D Boxes** (`box2d`), **3D Boxes** (`box3d`) and
+  **Box + Screenshot** (`mixrbv2`).
+- Save and let Update All run. It writes the selection to
+  `downloader_chipster6502_artworkdb.ini` and the Downloader installs the
+  images under `docs/`.
+
+Changing a system's style replaces its images on the next run; deselecting
+it removes them. Consumers do not need to know any of this — they read
+whatever is on the card.
+
+### By hand
+
+For setups that run the Downloader without Update All, add one section per
+system to `downloader.ini`. The `db_url` selects the style:
 
 ```ini
 [chipster6502/artworkdb-genesis]
