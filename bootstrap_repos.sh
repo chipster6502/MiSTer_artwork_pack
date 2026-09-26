@@ -7,7 +7,7 @@ set -euo pipefail
 GH_BASE="${GH_BASE:-https://github.com/chipster6502}"
 GRPS=("$@")
 [ ${#GRPS[@]} -gt 0 ] || GRPS=(nintendo-consoles nintendo-handhelds sega atari nec sony snk misc arcade)
-BRANCHES=(media-box2d media-box3d media-mixrbv2 db)
+BRANCHES=(media-box2d media-box3d media-mixrbv2 media-snap media-title db)
 
 BASE="$(cd "$(dirname "$0")/.." && pwd)"
 for G in "${GRPS[@]}"; do

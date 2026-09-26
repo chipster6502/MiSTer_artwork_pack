@@ -12,6 +12,10 @@ serve the same games through the same index, so switching styles is a clean
 replacement. The full list, with a `db_id` and repository per system, is in
 [PACK_FORMAT.md](PACK_FORMAT.md).
 
+**Built, publication pending:** two packs installed *next to* the boxes —
+in-game screenshots (about 22,700 images) and title screens (about 23,400),
+PNG as captured, never resampled. See [Screenshot and title packs](#screenshot-and-title-packs).
+
 This repository holds the builder. The images themselves live in separate
 `artworkdb-*` repositories, one per hardware family.
 
@@ -27,6 +31,8 @@ docs/<System>/Artwork/manifest.tsv   style and ScreenScraper system per image
 
 The path is part of the format, not a configuration option. Reading a pack
 means joining `docs/`, the system folder and the game key — nothing else.
+The screenshot and title packs are the same five files in
+`docs/<System>/Screenshots/` and `docs/<System>/Titles/`, with `<key>.png`.
 
 **Keys** are No-Intro names for cartridges, Redump names for CD systems, and
 MAME setnames for arcade and Neo Geo. **`index.tsv`** resolves everything
@@ -54,6 +60,32 @@ there and never need to know which.
 All three write the same path and share a `db_id`, so switching styles is a
 clean replacement rather than two databases fighting over one file. All
 three are published for every system in the table.
+
+## Screenshot and title packs
+
+Two packs of their own, installed alongside whichever box style is chosen:
+
+| Pack | Style label | Folder | Images | db_id |
+|---|---|---|---:|---|
+| Screenshots | `snap` | `docs/<System>/Screenshots/` | ~22,700 | `chipster6502/artworkdb-<system>-screenshots` |
+| Titles | `title` | `docs/<System>/Titles/` | ~23,400 | `chipster6502/artworkdb-<system>-titles` |
+
+- **PNG, never resampled.** A capture that is an exact integer enlargement
+  is reduced to its native frame; everything else ships as captured. Pixel
+  art stays pixel art, and a consumer scales it with nearest neighbour or
+  adds a CRT effect at display time.
+- **One card block per image where possible.** A PNG over 128 KB drops to
+  256 colours (`manifest.tsv` marks it), except N64 and Saturn, which stay
+  lossless.
+- **Sources:** ScreenScraper first, [libretro-thumbnails](https://github.com/libretro-thumbnails)
+  where ScreenScraper has no image or only a JPEG.
+- **Coverage:** `index.tsv` resolves about as many dumps as the box packs
+  (51,123 for screenshots and 50,996 for title screens, against 51,162);
+  the games left without an image are mostly arcade sets ScreenScraper
+  holds no capture for.
+
+Each is about 0.8 GB to download; on a card with 128 KB blocks each takes
+about as much room as a box style, because every file costs at least a block.
 
 ## Installing
 
@@ -105,8 +137,8 @@ Four resumable stages, driven by `scope.ini`:
 | Stage | Does |
 |---|---|
 | `identify` | queries ScreenScraper for each game in scope and caches the reply |
-| `fetch` | downloads the first media in the style recipe that exists |
-| `assemble` | normalises images, writes the TSVs |
+| `fetch` | downloads the first media in the style recipe that exists, from ScreenScraper or libretro-thumbnails |
+| `assemble` | normalises images (JPEG boxes, PNG screens), writes the TSVs |
 | `package` | emits `db.json.zip` and the `downloader.ini` section |
 
 Plus `verify`, which compares what is published against what was built —
@@ -139,6 +171,14 @@ one game without dropping the key, so a bad mix costs that game its mix and
 nothing else. `neogeo_dat.py` turns the
 Neo Geo core's `romsets.xml` into the Parent/Clone DAT the builder reads.
 
+The screenshot and title packs are built the same way, with `--style snap`
+and `--style title`. Their recipes name ScreenScraper media (`ss`,
+`sstitle`) and libretro-thumbnails folders (`lr-snaps`, `lr-titles`); the
+libretro listing comes from a blob-less clone in `work/libretro/`, so `git`
+must be on the PATH. When ScreenScraper answers `NOMEDIA` for a media its
+stored fiche lists — it moves files between regions — `fetch` re-reads the
+fiche's media list and tries again.
+
 A second style mirrors the first: `--like box2d` makes `fetch` request only
 the keys the `box2d` pack serves and `assemble` write the same keys through
 the same `index.tsv`, copying the `box2d` image where the new style has
@@ -154,7 +194,7 @@ Around the four stages, in the order they are used:
 | `bootstrap_repos.sh` | clones every `artworkdb-<group>` repository into `../pub-<group>` and creates the `media-<style>` and `db` branches |
 | `exclude_keys.py` | adds reviewed keys to `excludes.tsv` and deletes what was already built for them |
 | `rotate_keys.py` | registers rotations in `rotations.tsv` for keys reviewed as sideways and deletes their built images so `assemble` re-encodes them |
-| `reject_media.py` | registers a refused media in `media_rejects.tsv` and deletes only the images each style's manifest attributes to it |
+| `reject_media.py` | registers a refused media in `media_rejects.tsv` and deletes only the images each style's manifest attributes to it; in a screenshot pack, the next `fetch` then takes the next source |
 | `publish.sh` | pushes one system to its media branch and its database to the `db` branch; refuses if anything outside that system would change |
 | `republish_all.sh` | runs assemble–package–publish–verify for every system in `scope.ini`, stopping at the first failure |
 | `tools/pack_index.py` | prints the *Published systems* table of `PACK_FORMAT.md` from the built databases, so the document is pasted, never typed |
@@ -196,7 +236,33 @@ group = sega
 The `db_id` stays per system regardless of `group`, so regrouping later only
 changes the URL inside `db.json` and breaks nobody's `downloader.ini`.
 
+A screenshot style is declared like any other, plus what makes it a
+separate pack:
+
+```ini
+[style:snap]
+recipe = ss > lr-snaps
+format = png
+folder = Screenshots
+placeholder_min = 0
+lossless = N64, Saturn
+```
+
+`folder` gives it its own path and `db_id`; `placeholder_min = 0` keeps
+screens that several games legitimately share (a series of discs), which
+the box check would drop; `lossless` lists the systems exempt from the
+one-block rule. Each system names its libretro-thumbnails repository and,
+where a measured comparison says so, its own source order:
+
+```ini
+[system:Atari2600]
+libretro = Atari_-_2600
+recipe_title = lr-titles > sstitle
+```
+
 ## Credits
 
 Artwork and metadata come from [ScreenScraper](https://www.screenscraper.fr),
-contributed by its community. Arcade scope is derived from the MAME listxml.
+contributed by its community. Some screenshots and title screens come from
+[libretro-thumbnails](https://github.com/libretro-thumbnails), matched by
+exact No-Intro/Redump name. Arcade scope is derived from the MAME listxml.

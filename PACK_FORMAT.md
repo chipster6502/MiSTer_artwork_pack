@@ -39,6 +39,11 @@ assuming `/media/fat`: the reference implementation checks `/media/fat`, then
 
 All TSV files are UTF-8, tab-separated, LF-terminated.
 
+Two more packs, in-game screenshots and title screens, use the same layout
+in folders of their own, `docs/<System>/Screenshots/` and
+`docs/<System>/Titles/`, with PNG images. They are installed next to the
+boxes, not instead of them; see [Screenshot and title packs](#screenshot-and-title-packs).
+
 ## Keys
 
 The **key** is the identifier a game is filed under, and it is always a name
@@ -166,6 +171,11 @@ hit. `key` here is the loaded file's name without extension.
 Steps 2–5 need `index.tsv`; when it is missing, degrade to step 1 rather
 than failing. If a step maps to a key whose `.jpg` is absent, fall through.
 
+A screenshot or title pack resolves the same way against its own folder,
+its own `index.tsv` and `.png`. Resolve each pack independently: the set of
+keys that carry a file differs between packs (below), while every dump
+resolves in all of them.
+
 Field measurement, PSX on real hardware: of 40 catalogued games, 9 resolved
 at step 1, 29 through the index, 2 by title. **The index is what carries the
 pack** — with exact-name resolution alone, three quarters of the library
@@ -191,7 +201,7 @@ from.
 
 ## Images
 
-Baseline JPEG, RGB, longest side at most **768 px**. Quality is tuned per
+Box styles: baseline JPEG, RGB, longest side at most **768 px**. Quality is tuned per
 style so that a typical image fits one 128 KB card block. No placeholder
 images: a game with no usable art gets no file (an absent image is treated
 as better than a wrong or empty one).
@@ -211,6 +221,62 @@ holds none, or the one it holds was reviewed as unusable — the image comes
 from another style rather than being left out, and `manifest.tsv` records
 which style it came from.
 
+## Screenshot and title packs
+
+Two packs beside the boxes, each installed on its own:
+
+| Pack | Folder | Content | Style label | db_id |
+|---|---|---|---|---|
+| Screenshots | `docs/<System>/Screenshots/` | an in-game screen | `snap` | `chipster6502/artworkdb-<system>-screenshots` |
+| Titles | `docs/<System>/Titles/` | the title screen | `title` | `chipster6502/artworkdb-<system>-titles` |
+
+Same keys, same five file types and the same resolution as the boxes; the
+image is `<key>.png`. Two differences a consumer may notice:
+
+- **Fewer files for the same games.** A screenshot is usually identical for
+  every regional release of a game, so more dumps share one file than in the
+  box pack. `index.tsv` still maps every dump; only the representative keys
+  differ.
+- **`manifest.tsv` has a fourth column**, `encoding`:
+
+  ```
+  #key	style	ss_system_id	encoding
+  ```
+
+  `style` is the source: `ss` or `sstitle` (ScreenScraper), `lr-snaps` or
+  `lr-titles` ([libretro-thumbnails](https://github.com/libretro-thumbnails)).
+  `encoding` is `lossless` or `256colors`.
+
+### Images
+
+PNG at the resolution the source was captured at, **never resampled**:
+
+- An image that is an exact nearest-neighbour enlargement by one integer
+  factor on both axes is reduced by that factor; nothing is lost, and the
+  file is the native frame (a SNES 512×448 capture that is 256×224 doubled
+  ships as 256×224). Axes are never reduced separately, so the aspect a
+  1:1 display shows is the capture's own: an Atari 2600 frame stays at
+  320×210 with doubled columns.
+- A PNG that fits one 128 KB card block is kept lossless (most 2D systems,
+  a few KB each). Above that it is reduced to a 256-colour palette and
+  marked `256colors`. **N64 and Saturn are exempt** and always lossless:
+  ScreenScraper's N64 captures are 640×480 renders, twice the console's
+  320×240, and libretro's Saturn captures are already filtered.
+
+Show these images with nearest-neighbour or integer scaling. Anything that
+imitates a CRT — scanlines, masks, blur — belongs in the consumer at display
+time, never in the file.
+
+### Sources
+
+ScreenScraper first: it covers almost every key and serves the capture of
+the key's own region. [libretro-thumbnails](https://github.com/libretro-thumbnails),
+matched by exact No-Intro/Redump name, fills in where ScreenScraper has no
+image or only a JPEG (a JPEG can never become lossless). Atari 2600 titles
+take libretro first: both sources are filtered upscales there, and
+libretro's are a fraction of the size. Arcade and Neo Geo have no libretro
+source, since that project names MAME sets by description.
+
 ## Distribution
 
 Media lives in `artworkdb-<group>` repositories, one per hardware family,
@@ -221,21 +287,30 @@ https://github.com/chipster6502/artworkdb-<group>
     media-box2d      docs/<System>/Artwork/... for every system in the group
     media-box3d
     media-mixrbv2
+    media-snap       docs/<System>/Screenshots/...
+    media-title      docs/<System>/Titles/...
     db               <system>_<style>.json.zip (Downloader databases)
 ```
 
 The Downloader database id is per **system**, regardless of group —
 `chipster6502/artworkdb-<system-lowercase>` — so a future regrouping changes
-URLs inside `db.json` and breaks nobody's `downloader.ini`. Every file is
-tagged `docs`, `artwork`, `<system>` and `<system>artwork` for filtering.
+URLs inside `db.json` and breaks nobody's `downloader.ini`. The screenshot
+and title packs add `-screenshots` and `-titles` to it, which is what lets
+them sit next to a box style. Every file is tagged `docs`, the folder name
+(`artwork`, `screenshots`, `titles`), `<system>` and `<system><folder>`
+(`snesartwork`, `snesscreenshots`) for filtering.
 
 Any file can be fetched directly, without the Downloader. Two derivation
 rules are all you need:
 
 ```
 media    https://raw.githubusercontent.com/chipster6502/artworkdb-<group>/media-<style>/docs/<System>/Artwork/<key>.jpg
+         https://raw.githubusercontent.com/chipster6502/artworkdb-<group>/media-snap/docs/<System>/Screenshots/<key>.png
+         https://raw.githubusercontent.com/chipster6502/artworkdb-<group>/media-title/docs/<System>/Titles/<key>.png
 db       https://raw.githubusercontent.com/chipster6502/artworkdb-<group>/db/<system-lowercase>_<style>.json.zip
-db_id    chipster6502/artworkdb-<system-lowercase>
+db_id    chipster6502/artworkdb-<system-lowercase>            (boxes)
+         chipster6502/artworkdb-<system-lowercase>-screenshots
+         chipster6502/artworkdb-<system-lowercase>-titles
 ```
 
 URL-encode the key, and note that `raw.githubusercontent.com` caches for a
@@ -300,7 +375,8 @@ fetching over HTTP, where you have to know which repository holds a system.
 
 Stable, treated as a contract:
 
-- the path scheme `docs/<System>/Artwork/`;
+- the path schemes `docs/<System>/Artwork/`, `docs/<System>/Screenshots/`
+  and `docs/<System>/Titles/`, with `.jpg` boxes and `.png` screens;
 - the five file names and their column layouts as specified above;
 - keys being No-Intro / Redump names and MAME parent setnames;
 - one image per game, no placeholders;
@@ -311,10 +387,13 @@ Not guaranteed across releases:
 - **which dump represents a game** — keys move when No-Intro renames or the
   election changes, so resolve at read time and don't cache keys;
 - the exact set of synopsis languages per system;
-- image dimensions below the 768 px cap (they follow the source scan);
+- image dimensions below the 768 px cap (they follow the source scan), and
+  screenshot dimensions (they follow the capture);
 - image counts, and which systems exist — the catalogue grows.
 
 ## Credits
 
 Artwork and metadata come from [ScreenScraper](https://www.screenscraper.fr),
-contributed by its community. Respect their terms when redistributing.
+contributed by its community. Some screenshots and title screens come from
+[libretro-thumbnails](https://github.com/libretro-thumbnails); `manifest.tsv`
+says which. Respect their terms when redistributing.

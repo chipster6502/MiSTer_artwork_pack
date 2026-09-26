@@ -4,9 +4,11 @@
 Four resumable stages driven by scope.ini:
 
   identify  jeuInfos per game -> work/meta/<System>/<key>.json
-  fetch     first style of the recipe that has media -> work/pool/<style>/
-  assemble  normalize to baseline JPEG (<=768 px) -> out/media/docs/, plus
-            gameinfo.tsv, synopsis_<lang>.tsv, index.tsv and manifest.csv
+  fetch     first source of the recipe that has media -> work/pool/<source>/
+            (ScreenScraper media types, or libretro-thumbnails folders)
+  assemble  box styles: baseline JPEG (<=768 px) in docs/<System>/Artwork/;
+            screenshot styles: PNG at native size in their own folder;
+            plus gameinfo.tsv, synopsis_<lang>.tsv, index.tsv, manifest.tsv
   package   one Downloader database per system -> out/db/
 
 Every stage skips what already exists on disk; delete a file to rebuild it.
@@ -22,7 +24,9 @@ import hashlib
 import io
 import json
 import os
+import posixpath
 import re
+import subprocess
 import sys
 import threading
 import time
@@ -118,8 +122,22 @@ class Scope:
         # per-style quality: styles compress very differently
         opts = self.style_opts.get(self.style_label, {})
         self.quality = int(opts.get("quality", pk.get("quality", "80")))
+        # A screenshot style is a separate pack installed next to the boxes:
+        # its own folder, and PNG so pixel art survives.
+        self.folder = opts.get("folder", "Artwork").strip()
+        self.image_ext = opts.get("format", "jpg").strip().lower()
+        if self.image_ext not in ("jpg", "png"):
+            die(f"scope.ini: [style:{self.style_label}] format must be jpg or png")
+        if not re.fullmatch(r"[A-Za-z0-9]+", self.folder):
+            die(f"scope.ini: [style:{self.style_label}] folder must be one word")
+        # systems whose PNGs keep every colour even past one card block
+        self.lossless_systems = {s.strip() for s in
+                                 opts.get("lossless", "").split(",") if s.strip()}
         self.max_px = int(pk.get("max_px", "768"))
-        self.placeholder_min = int(pk.get("placeholder_min", "3"))
+        # 0 turns the check off: screenshots are uploads, not rendered
+        # composites, and a series of discs can share one screen
+        self.placeholder_min = int(opts.get("placeholder_min",
+                                            pk.get("placeholder_min", "3")))
         self.url_base = pk.get("url_base", "").rstrip("/")
         self.db_id_prefix = pk.get("db_id_prefix", "").strip()
         # db branch root, same placeholders as url_base; only verify needs it
@@ -144,6 +162,14 @@ class Scope:
                 # extra ids accepted besides the family of ss_id
                 "accept": tuple(x.strip() for x in accept.split(",") if x.strip()),
                 "reject": tuple(x.strip() for x in reject.split(",") if x.strip()),
+                # libretro-thumbnails repository, for the lr-* recipe sources
+                "libretro": cp[section].get("libretro", "").strip(),
+                # recipe_<style> reorders sources where a measured
+                # comparison found the other one better for this system
+                "recipes": {k[len("recipe_"):]: [s.strip() for s in v.split(">")
+                                                 if s.strip()]
+                            for k, v in cp[section].items()
+                            if k.startswith("recipe_") and v.strip()},
             }
         if not self.softname:
             die("scope.ini: [screenscraper] softname is required "
@@ -152,6 +178,10 @@ class Scope:
         self.media_rejects = load_media_rejects()
         if not self.systems:
             die("scope.ini: no [system:<Name>] sections found")
+
+    def recipe_for(self, system):
+        """The style's recipe, or the system's own order for this style."""
+        return self.systems[system]["recipes"].get(self.style_label, self.recipe)
 
 
 def credentials():
@@ -799,6 +829,78 @@ def with_auth(url, creds, softname):
     return url + sep + extra
 
 
+# libretro-thumbnails: one repository per system, files named after the exact
+# No-Intro/Redump dump, so a key resolves without any fuzzy matching
+LIBRETRO_SOURCES = {"lr-snaps": "Named_Snaps", "lr-titles": "Named_Titles",
+                    "lr-boxarts": "Named_Boxarts"}
+LIBRETRO_GIT = "https://github.com/libretro-thumbnails/{repo}.git"
+LIBRETRO_RAW = "https://raw.githubusercontent.com/libretro-thumbnails/{repo}/master/{path}"
+LIBRETRO_BAD_CHARS = set('&*/:`<>?\\|"')
+# a symlink to one of these is another product, not another dump
+LIBRETRO_NOT_SAME = re.compile(r"\((demo|proto|beta|sample|kiosk)", re.IGNORECASE)
+
+
+def libretro_name(name):
+    return "".join("_" if c in LIBRETRO_BAD_CHARS else c for c in name)
+
+
+def libretro_listing(repo, folder):
+    """Stems of the PNGs in one folder. A blob-less clone lists every file for
+    a few MB and no API quota; delete work/libretro/<repo> to refresh it."""
+    clone = Path("work/libretro") / repo
+    try:
+        if not (clone / ".git").is_dir():
+            clone.parent.mkdir(parents=True, exist_ok=True)
+            log(f"[fetch] cloning the {repo} listing (no images)")
+            subprocess.run(["git", "clone", "-q", "--filter=blob:none",
+                            "--no-checkout", "--depth", "1",
+                            LIBRETRO_GIT.format(repo=repo), str(clone)],
+                           check=True)
+        # -z: no path quoting, so non-ASCII names come through intact
+        raw = subprocess.run(["git", "-C", str(clone), "ls-tree", "-z",
+                              "--name-only", "HEAD", folder + "/"],
+                             capture_output=True, check=True).stdout
+    except (OSError, subprocess.CalledProcessError) as exc:
+        die(f"libretro listing of {repo} failed ({exc}); the lr-* sources "
+            "need git on the PATH")
+    return {path.rsplit("/", 1)[-1][:-4]
+            for path in raw.decode("utf-8").split("\0")
+            if path.lower().endswith(".png")}
+
+
+def libretro_candidates(meta_dir):
+    """{key: [names to try]}: the key, then every dump it stands for."""
+    names = {}
+    members = meta_dir / "_members.tsv"
+    if members.is_file():
+        for line in members.read_text(encoding="utf-8").splitlines():
+            if line and not line.startswith("#"):
+                parts = line.split("\t")
+                names.setdefault(parts[3], []).append(parts[0])
+    return {key: [key] + sorted(n for n in dumps if n != key)
+            for key, dumps in names.items()}
+
+
+def libretro_get(repo, folder, stem, softname):
+    """PNG bytes of one libretro file, following a symlink only to another
+    dump of the same product: they sometimes point at a different game."""
+    path = f"{folder}/{stem}.png"
+    body = http_get(LIBRETRO_RAW.format(repo=repo, path=quote(path)), softname,
+                    timeout=90)
+    if body.startswith(b"\x89PNG"):
+        return body
+    # raw.githubusercontent serves a symlink as the path it points to
+    target = posixpath.normpath(posixpath.join(
+        folder, body.decode("utf-8", errors="replace").strip()))
+    target_stem = posixpath.basename(target)[:-4]
+    if (norm_title(target_stem) != norm_title(stem)
+            or LIBRETRO_NOT_SAME.search(target_stem)):
+        return None
+    body = http_get(LIBRETRO_RAW.format(repo=repo, path=quote(target)),
+                    softname, timeout=90)
+    return body if body.startswith(b"\x89PNG") else None
+
+
 def stage_fetch(scope, creds, only_system=None, like=None):
     for system, cfg in scope.systems.items():
         if only_system and system != only_system:
@@ -807,56 +909,147 @@ def stage_fetch(scope, creds, only_system=None, like=None):
         if not meta_dir.is_dir():
             log(f"[fetch] {system}: no meta yet, run identify first")
             continue
+        recipe = scope.recipe_for(system)
         metas = [m for m in sorted(meta_dir.glob("*.json"))
                  if (system, m.stem) not in scope.excludes]
         log(f"[fetch] {system}: {len(metas)} identified games, "
-            f"recipe {' > '.join(scope.recipe)}")
+            f"recipe {' > '.join(recipe)}")
+
+        listings, lr_names = {}, {}
+        for source in recipe:
+            if source not in LIBRETRO_SOURCES:
+                continue
+            if not cfg["libretro"]:
+                log(f"[fetch] {system}: no libretro repo in scope.ini, "
+                    f"{source} skipped")
+                continue
+            listings[source] = libretro_listing(cfg["libretro"],
+                                                LIBRETRO_SOURCES[source])
+            lr_names = lr_names or libretro_candidates(meta_dir)
+
+        def libretro_stem(source, key):
+            for name in lr_names.get(key, [key]):
+                if libretro_name(name) in listings.get(source, {}):
+                    return libretro_name(name)
+            return None
 
         # the reference's unified siblings and dropped placeholders would
         # cost a request each and never reach a pack
         wanted = reference_pack(like, system)[0] if like else None
         cached = unwanted = 0
-        pools = {style: pool_index(style, system) for style in scope.recipe}
+        pools = {style: pool_index(style, system) for style in recipe}
         todo = []
         for meta_path in metas:
             key = meta_path.stem
             if wanted is not None and key not in wanted:
                 unwanted += 1
-            elif any(pools[style].get(key) for style in scope.recipe):
+            elif any(pools[style].get(key)
+                     and (style, system, key) not in scope.media_rejects
+                     for style in recipe):
+                # a refused file stays in the pool; the next source is due
                 cached += 1
             else:
                 todo.append(meta_path)
 
-        def fetch_one(meta_path):
-            key = meta_path.stem
-            jeu = json.loads(meta_path.read_text(encoding="utf-8"))
-            medias = jeu.get("medias") or []
-            media = style_used = None
-            for style in scope.recipe:
-                if (style, system, key) in scope.media_rejects:
-                    continue
-                media = pick_media(medias, style, scope.regions,
-                                  key_region(key))
-                if media:
-                    style_used = style
-                    break
-            if not media:
-                return "none"
-
-            ext = (media.get("format") or "jpg").lower()
-            pool = Path("work/pool") / style_used / system
+        def save(source, key, ext, body):
+            pool = Path("work/pool") / source / system
             pool.mkdir(parents=True, exist_ok=True)
-            target = pool / f"{key}.{ext}"
+            (pool / f"{key}.{ext}").write_bytes(body)
+            return "got"
+
+        def download(source, key, media):
             try:
                 body = http_get(with_auth(media["url"], creds, scope.softname),
                                 scope.softname, timeout=90)
             except HTTPError:
                 return "none"
+            if body.strip() == b"NOMEDIA":
+                return "stale"
             if len(body) < 1024 and b"JFIF" not in body and b"PNG" not in body:
                 check_quota_wall(body.decode("utf-8", errors="replace"))
                 return "none"
-            target.write_bytes(body)
-            return "got"
+            return save(source, key, (media.get("format") or "jpg").lower(), body)
+
+        def refresh_medias(meta_path, jeu):
+            """The fiche's media list as SS holds it now, saved over the
+            stored one. Names and texts stay as identified: packs already
+            published must not change under a fetch."""
+            params = {"devid": creds["SS_DEVID"],
+                      "devpassword": creds["SS_DEVPASSWORD"],
+                      "ssid": creds["SS_SSID"], "sspassword": creds["SS_SSPASSWORD"],
+                      "softname": scope.softname, "output": "json",
+                      "gameid": jeu.get("id")}
+            try:
+                text = http_get(build_url("jeuInfos.php", params),
+                                scope.softname).decode("utf-8", errors="replace")
+            except HTTPError:
+                return None
+            try:
+                fresh = json.loads(text)["response"]["jeu"]
+            except (ValueError, KeyError, TypeError):
+                fresh = json_after_noise(text)
+            if not isinstance(fresh, dict) or str(fresh.get("id")) != str(jeu.get("id")):
+                check_quota_wall(text)
+                return None
+            jeu["medias"] = redact_json(fresh.get("medias") or [])
+            meta_path.write_text(json.dumps(jeu, ensure_ascii=False, indent=1),
+                                 encoding="utf-8")
+            return jeu["medias"]
+
+        def get_ss(source, meta_path, jeu, media):
+            key = meta_path.stem
+            outcome = download(source, key, media)
+            if outcome != "stale":
+                return outcome
+            # SS moves media between regions (wor -> jp, same file); the old
+            # URL then answers NOMEDIA while the fiche lists it elsewhere
+            medias = refresh_medias(meta_path, jeu)
+            again = medias and pick_media(medias, source, scope.regions,
+                                          key_region(key))
+            if again and strip_auth(again["url"]) != strip_auth(media["url"]):
+                outcome = download(source, key, again)
+            return "got" if outcome == "got" else "none"
+
+        def fetch_one(meta_path):
+            key = meta_path.stem
+            jeu = json.loads(meta_path.read_text(encoding="utf-8"))
+            medias = jeu.get("medias") or []
+            lossy = None
+            for source in recipe:
+                if (source, system, key) in scope.media_rejects:
+                    continue
+                if source in LIBRETRO_SOURCES:
+                    stem = libretro_stem(source, key)
+                    if not stem:
+                        continue
+                    try:
+                        body = libretro_get(cfg["libretro"],
+                                            LIBRETRO_SOURCES[source], stem,
+                                            scope.softname)
+                    except HTTPError:
+                        body = None
+                    if body:
+                        return save(source, key, "png", body)
+                    continue
+                media = pick_media(medias, source, scope.regions,
+                                   key_region(key))
+                if not media:
+                    continue
+                # a PNG pack gains nothing from a JPEG it can never make
+                # lossless, so a later lossless source goes first
+                if (scope.image_ext == "png" and lossy is None
+                        and (media.get("format") or "jpg").lower() != "png"):
+                    lossy = (source, media)
+                    continue
+                outcome = get_ss(source, meta_path, jeu, media)
+                # SS lists some media it no longer serves; a screenshot pack
+                # tries its next source, the closed box styles keep their
+                # recipe as built
+                if outcome == "got" or scope.image_ext != "png":
+                    return outcome
+            if lossy:
+                return get_ss(lossy[0], meta_path, jeu, lossy[1])
+            return "none"
 
         outcomes = run_parallel(todo, fetch_one, scope.threads, scope.delay,
                                 "downloaded", len(todo))
@@ -902,7 +1095,8 @@ def game_info_row(jeu, scope):
 
 
 MANIFEST_FIELDS = ["system", "key", "ss_id", "ss_system_id", "ss_system",
-                   "style", "region", "md5", "size", "width", "height"]
+                   "style", "region", "md5", "size", "width", "height",
+                   "encoding"]
 
 
 def load_names(path=Path("names.tsv")):
@@ -1016,9 +1210,11 @@ def find_placeholders(scope, system, threshold):
     Counted per distinct SS entry, not per key: a game retitled per region
     forms several keys that legitimately share one box, and counting keys
     discarded real covers."""
+    if threshold <= 0:
+        return {}
     meta_dir = Path("work/meta") / system
     by_hash = {}
-    for style in scope.recipe:
+    for style in scope.recipe_for(system):
         pool = Path("work/pool") / style / system
         if not pool.is_dir():
             continue
@@ -1070,6 +1266,43 @@ def save_within_block(img, target, quality, block=ALLOC_BLOCK,
         img.save(target, format="JPEG", quality=quality, optimize=True,
                  progressive=False)
     return quality
+
+
+def exact_reduce(img):
+    """Undo a nearest-neighbour upscale by one factor on both axes, only when
+    upscaling back reproduces every pixel: the result is the native frame,
+    and nothing is resampled. Both axes together, or the aspect would change
+    for any consumer that shows pixels 1:1."""
+    from PIL import Image, ImageChops
+    w, h = img.size
+    for k in (4, 3, 2):
+        if w % k or h % k:
+            continue
+        small = img.resize((w // k, h // k), Image.NEAREST)
+        if ImageChops.difference(small.resize((w, h), Image.NEAREST),
+                                 img).getbbox() is None:
+            return small
+    return img
+
+
+def save_png(img, target, lossless, block=ALLOC_BLOCK):
+    """Save a screenshot as PNG and say how: 'lossless', or '256colors' when
+    the lossless file would spill past one card block. A palette is used
+    only when it reproduces every pixel."""
+    from PIL import Image, ImageChops
+    img = img.copy()
+    img.info.clear()
+    out = img
+    colours = img.getcolors(256)
+    if colours:
+        pal = img.convert("P", palette=Image.ADAPTIVE, colors=len(colours))
+        if ImageChops.difference(pal.convert("RGB"), img).getbbox() is None:
+            out = pal
+    out.save(target, format="PNG", optimize=True)
+    if lossless or target.stat().st_size <= block:
+        return "lossless"
+    img.quantize(256).save(target, format="PNG", optimize=True)
+    return "256colors"
 
 
 def reference_pack(like, system):
@@ -1129,7 +1362,7 @@ def unify_siblings(meta_dir, pools, placeholders, in_scope, scope):
         if (meta_dir.name, key) in scope.excludes:
             continue
         src = None
-        for style in scope.recipe:
+        for style in scope.recipe_for(meta_dir.name):
             hit = pools[style].get(key)
             if hit and md5_file(hit) not in placeholders:
                 src = hit
@@ -1170,12 +1403,15 @@ def stage_assemble(scope, only_system=None, prune=False, like=None):
         if not meta_dir.is_dir():
             continue
         out_dir = (Path(f"out/media-{scope.style_label}/docs")
-                   / system / "Artwork")
+                   / system / scope.folder)
         out_dir.mkdir(parents=True, exist_ok=True)
+        ext = "." + scope.image_ext
+        png = scope.image_ext == "png"
 
         # keys no longer in _members.tsv left the scope
         in_scope = read_members(meta_dir)
-        pools = {style: pool_index(style, system) for style in scope.recipe}
+        recipe = scope.recipe_for(system)
+        pools = {style: pool_index(style, system) for style in recipe}
         placeholders = find_placeholders(scope, system, scope.placeholder_min)
         if placeholders:
             total = sum(len(v) for v in placeholders.values())
@@ -1183,7 +1419,7 @@ def stage_assemble(scope, only_system=None, prune=False, like=None):
                 f"image(s) detected, affecting {total} games")
         rows = []
         syn_rows = {}  # lang -> [(key, text)]
-        pack_rows = []  # (key, style, ss_system_id) for manifest.tsv
+        pack_rows = []  # (key, style, ss_system_id, encoding) for manifest.tsv
         made = skipped = stale = blanks = broken = excluded = refused = 0
         ref_keys = ref_art = None
         borrowed = set()
@@ -1198,7 +1434,7 @@ def stage_assemble(scope, only_system=None, prune=False, like=None):
                 continue
             if (system, key) in scope.excludes:
                 # metadata may linger from before the exclusion
-                (out_dir / (key + ".jpg")).unlink(missing_ok=True)
+                (out_dir / (key + ext)).unlink(missing_ok=True)
                 manifest.pop((system, key), None)
                 excluded += 1
                 continue
@@ -1211,7 +1447,7 @@ def stage_assemble(scope, only_system=None, prune=False, like=None):
                 syn_rows.setdefault(lang, []).append((key, text))
 
             src = style_used = None
-            for style in scope.recipe:
+            for style in recipe:
                 hit = pools[style].get(key)
                 if hit:
                     if (style, system, key) in scope.media_rejects:
@@ -1225,7 +1461,7 @@ def stage_assemble(scope, only_system=None, prune=False, like=None):
                     break
             if key in alias_of:
                 # a stale file from a build before unification must not stay
-                (out_dir / (key + ".jpg")).unlink(missing_ok=True)
+                (out_dir / (key + ext)).unlink(missing_ok=True)
                 manifest.pop((system, key), None)
                 continue
             if ref_keys is not None:
@@ -1237,7 +1473,8 @@ def stage_assemble(scope, only_system=None, prune=False, like=None):
             if not src:
                 continue
 
-            target = out_dir / (key + ".jpg")
+            target = out_dir / (key + ext)
+            encoding = (manifest.get((system, key)) or {}).get("encoding", "")
             if target.is_file():
                 skipped += 1
             elif key in borrowed:
@@ -1249,7 +1486,11 @@ def stage_assemble(scope, only_system=None, prune=False, like=None):
                     with Image.open(src) as img:
                         # SS serves box-3D as RGBA over black: composite,
                         # or Pillow fills the alpha white
-                        if img.mode in ("RGBA", "LA", "P"):
+                        # a screenshot may carry its transparent colour in
+                        # info instead of an alpha band; left there, it
+                        # trips the palette conversion
+                        if img.mode in ("RGBA", "LA", "P") or (
+                                png and "transparency" in img.info):
                             img = img.convert("RGBA")
                             flat = Image.new("RGB", img.size, (0, 0, 0))
                             flat.paste(img, mask=img.split()[-1])
@@ -1260,17 +1501,25 @@ def stage_assemble(scope, only_system=None, prune=False, like=None):
                         if turn:
                             # Pillow turns counter-clockwise; the table is clockwise
                             img = img.rotate(-turn, expand=True)
-                        w, h = img.size
-                        if max(w, h) > scope.max_px:
-                            ratio = scope.max_px / max(w, h)
-                            img = img.resize((round(w * ratio), round(h * ratio)),
-                                             Image.LANCZOS)
-                        save_within_block(img, target, scope.quality)
+                        if png:
+                            # never resampled: native pixels are the point
+                            encoding = save_png(
+                                exact_reduce(img), target,
+                                system in scope.lossless_systems)
+                        else:
+                            w, h = img.size
+                            if max(w, h) > scope.max_px:
+                                ratio = scope.max_px / max(w, h)
+                                img = img.resize((round(w * ratio), round(h * ratio)),
+                                                 Image.LANCZOS)
+                            save_within_block(img, target, scope.quality)
                 except Exception as exc:
-                    # drop it from the pool so the next fetch retries
+                    # drop it from the pool so the next fetch retries, and any
+                    # half-written output, which the next run would keep
                     log(f"[assemble] {system}: unreadable {src.name} ({exc}); "
                         "removed from pool, will be re-fetched")
                     src.unlink(missing_ok=True)
+                    target.unlink(missing_ok=True)
                     broken += 1
                     continue
                 made += 1
@@ -1284,16 +1533,20 @@ def stage_assemble(scope, only_system=None, prune=False, like=None):
                 "style": style_used, "region": "",
                 "md5": md5_file(target), "size": str(target.stat().st_size),
                 "width": str(width), "height": str(height),
+                "encoding": encoding if png else "",
             }
-            pack_rows.append((key, style_used, sys_id))
+            pack_rows.append((key, style_used, sys_id, encoding))
 
         # lets a consumer filter by style and see which SS system each
         # image came from
         with open(out_dir / "manifest.tsv", "w", encoding="utf-8",
                   newline="") as f:
-            f.write("#key\tstyle\tss_system_id\n")
-            for key, style_used, sys_id in sorted(pack_rows):
-                f.write(f"{key}\t{style_used}\t{sys_id}\n")
+            # PNG packs also say which images lost colours to fit a block
+            f.write("#key\tstyle\tss_system_id" + ("\tencoding" if png else "")
+                    + "\n")
+            for key, style_used, sys_id, encoding in sorted(pack_rows):
+                f.write(f"{key}\t{style_used}\t{sys_id}"
+                        + (f"\t{encoding}" if png else "") + "\n")
 
         info_path = out_dir / "gameinfo.tsv"
         with open(info_path, "w", encoding="utf-8", newline="") as f:
@@ -1320,9 +1573,9 @@ def stage_assemble(scope, only_system=None, prune=False, like=None):
                         if r[0] == system
                         and (r[1] not in in_scope
                              or (ref_keys is not None and r[1] not in ref_keys)
-                             or not (out_dir / (r[1] + ".jpg")).is_file())]:
+                             or not (out_dir / (r[1] + ext)).is_file())]:
                 manifest.pop(row, None)
-            orphans = [p for p in out_dir.glob("*.jpg")
+            orphans = [p for p in out_dir.glob("*" + ext)
                        if p.stem not in in_scope
                        or (ref_keys is not None and p.stem not in ref_keys)]
             if prune:
@@ -1347,7 +1600,7 @@ def stage_assemble(scope, only_system=None, prune=False, like=None):
                         continue
                     name, crc, size, key = line.split("\t")
                     key = alias_of.get(key, key)
-                    if (out_dir / (key + ".jpg")).is_file():
+                    if (out_dir / (key + ext)).is_file():
                         f.write(f"{name}\t{crc}\t{size}\t{key}\n")
                         indexed += 1
 
@@ -1397,14 +1650,15 @@ def stage_package(scope, only_system=None):
         if only_system and system != only_system:
             continue
         media_dir = (Path(f"out/media-{scope.style_label}/docs")
-                     / system / "Artwork")
+                     / system / scope.folder)
         if not media_dir.is_dir():
             continue
-        install_root = Path("docs") / system / "Artwork"
+        install_root = Path("docs") / system / scope.folder
+        folder_lc = scope.folder.lower()
 
         tag_dictionary, tag_ids = {}, []
-        for name in ("docs", "artwork", system.lower(),
-                     f"{system.lower()}artwork"):
+        for name in ("docs", folder_lc, system.lower(),
+                     f"{system.lower()}{folder_lc}"):
             if name not in tag_dictionary:
                 tag_dictionary[name] = len(tag_dictionary)
             tag_ids.append(tag_dictionary[name])
@@ -1425,10 +1679,13 @@ def stage_package(scope, only_system=None):
         folders = {
             "docs": {"path": "pext", "tags": docs_tag},
             f"docs/{system}": {"path": "pext", "tags": system_tags},
-            f"docs/{system}/Artwork": {"path": "pext", "tags": system_tags},
+            f"docs/{system}/{scope.folder}": {"path": "pext", "tags": system_tags},
         }
 
-        db_id = scope.db_id_prefix + system.lower()
+        # box styles replace each other under one db_id; any other folder is
+        # a pack of its own, installed next to them
+        db_id = scope.db_id_prefix + system.lower() + (
+            "" if scope.folder == "Artwork" else "-" + folder_lc)
         db = {
             "db_id": db_id,
             "timestamp": int(time.time()),
@@ -1665,6 +1922,9 @@ def main():
             die(f"--like: unknown style '{args.like}'")
         if args.like == scope.style_label:
             die("--like must name a different style")
+        if scope.image_ext != "jpg" or scope.folder != "Artwork":
+            die("--like only mirrors box styles: a screenshot pack must "
+                "never borrow a box image")
     needs_net = args.stage in ("identify", "fetch", "all", "systems",
                                "resolve")
     # verify only reads public raw URLs, so it needs no credentials

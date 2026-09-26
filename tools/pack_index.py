@@ -32,7 +32,7 @@ for zip_path in sorted(db_dir.glob("*.json.zip")):
     rows.append({
         "system": folder, "style": m.group(2), "db_id": db.get("db_id", ""),
         "url": db.get("base_files_url", ""),
-        "images": sum(1 for f in files if f.lower().endswith(".jpg")),
+        "images": sum(1 for f in files if f.lower().endswith((".jpg", ".png"))),
         "bytes": sum(f.get("size", 0) for f in files.values()),
     })
 

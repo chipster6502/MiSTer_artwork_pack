@@ -4,6 +4,7 @@ delete what was already built from that media, so the next assemble falls
 to the next style of the recipe (or borrows the reference image).
 
     python reject_media.py mixrbv2 Arcade reject_arcade.txt "wrong mix"
+    python reject_media.py ss SNES reject_snes.txt "menu, not gameplay"
 
 One key per line; blank lines and '#' are ignored. The key stays in the
 pack with every other style untouched -- to drop a key from the pack
@@ -57,11 +58,14 @@ for name in (os.listdir('out') if os.path.isdir('out') else []):
     csv_path = os.path.join('out', 'manifest-%s.csv' % style)
     if not os.path.isfile(csv_path):
         continue
-    art = os.path.join('out', name, 'docs', system, 'Artwork')
+    # box styles build into Artwork/, screenshot styles into their own folder
+    docs = os.path.join('out', name, 'docs', system)
+    folders = ([os.path.join(docs, d) for d in os.listdir(docs)]
+               if os.path.isdir(docs) else [])
     with open(csv_path, newline='', encoding='utf-8') as f:
         for row in csv.DictReader(f):
             if row['system'] == system and row['style'] == media:
-                built_from.setdefault(row['key'], []).append((name, art))
+                built_from.setdefault(row['key'], []).append((name, folders))
 
 for key in keys:
     state = []
@@ -72,11 +76,12 @@ for key in keys:
     if (media, system, key) in rows:
         state.append('already listed')
     rows[(media, system, key)] = reason or rows.get((media, system, key), '')
-    for name, art in built_from.get(key, []):
-        p = os.path.join(art, key + '.jpg')
-        if os.path.isfile(p):
-            os.remove(p)
-            state.append('deleted in ' + name)
+    for name, folders in built_from.get(key, []):
+        for p in (os.path.join(d, key + ext) for d in folders
+                  for ext in ('.jpg', '.png')):
+            if os.path.isfile(p):
+                os.remove(p)
+                state.append('deleted in ' + name)
     print('%-46s %s' % (', '.join(state) or 'listed', key))
 
 with open(table, 'w', encoding='utf-8', newline='') as f:

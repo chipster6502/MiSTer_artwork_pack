@@ -46,6 +46,11 @@ db_id_prefix = CHANGE_ME/artworkdb-
 ;   list:<file>   plain text, one key per line
 ;
 ; Check ss_id against your account first:  python build_pack.py systems
+;
+; libretro:          libretro-thumbnails repository, for the lr-* sources of
+;                    the screenshot styles (Arcade and NEOGEO have none: that
+;                    project names MAME sets by description, not by setname)
+; recipe_<style>:    this system's own source order for one style
 ; ---------------------------------------------------------------------------
 
 [system:SNES]
@@ -53,12 +58,14 @@ ss_id = 4
 kind = console
 source = dat:dats/snes.dat
 group = nintendo-consoles
+libretro = Nintendo_-_Super_Nintendo_Entertainment_System
 
 [system:Genesis]
 ss_id = 1
 kind = console
 source = dat:dats/genesis.dat
 group = sega
+libretro = Sega_-_Mega_Drive_-_Genesis
 
 [system:Arcade]
 ss_id = 75
@@ -84,114 +91,136 @@ ss_id = 28
 kind = console
 source = dat:dats/atarilynx.dat
 group = atari
+libretro = Atari_-_Lynx
 
 [system:NES]
 ss_id = 3
 kind = console
 source = dat:dats/nes.dat
 group = nintendo-consoles
+libretro = Nintendo_-_Nintendo_Entertainment_System
 
 [system:FDS]
 ss_id = 106
 kind = console
 source = dat:dats/fds.dat
 group = nintendo-consoles
+libretro = Nintendo_-_Family_Computer_Disk_System
 
 [system:VirtualBoy]
 ss_id = 11
 kind = console
 source = dat:dats/virtualboy.dat
 group = nintendo-consoles
+libretro = Nintendo_-_Virtual_Boy
 
 [system:Satellaview]
 ss_id = 107
 kind = console
 source = dat:dats/satellaview.dat
 group = nintendo-consoles
+libretro = Nintendo_-_Satellaview
 
 [system:N64]
 ss_id = 14
 kind = console
 source = dat:dats/n64.dat
 group = nintendo-consoles
+libretro = Nintendo_-_Nintendo_64
 
 [system:GAMEBOY]
 ss_id = 9
 kind = console
 source = dat:dats/gameboy.dat
 group = nintendo-handhelds
+libretro = Nintendo_-_Game_Boy
 
 [system:GBC]
 ss_id = 10
 kind = console
 source = dat:dats/gbc.dat
 group = nintendo-handhelds
+libretro = Nintendo_-_Game_Boy_Color
 
 [system:GBA]
 ss_id = 12
 kind = console
 source = dat:dats/gba.dat
 group = nintendo-handhelds
+libretro = Nintendo_-_Game_Boy_Advance
 
 [system:SMS]
 ss_id = 2
 kind = console
 source = dat:dats/sms.dat
 group = sega
+libretro = Sega_-_Master_System_-_Mark_III
 
 [system:GameGear]
 ss_id = 21
 kind = console
 source = dat:dats/gamegear.dat
 group = sega
+libretro = Sega_-_Game_Gear
 
 [system:SG-1000]
 ss_id = 109
 kind = console
 source = dat:dats/sg1000.dat
 group = sega
+libretro = Sega_-_SG-1000
 
 [system:S32X]
 ss_id = 19
 kind = console
 source = dat:dats/s32x.dat
 group = sega
+libretro = Sega_-_32X
 
 [system:Atari2600]
 ss_id = 26
 kind = console
 source = dat:dats/atari2600.dat
 group = atari
+libretro = Atari_-_2600
+; both title sources are filtered upscales; libretro's are a
+; fraction of the size
+recipe_title = lr-titles > sstitle
 
 [system:ATARI5200]
 ss_id = 40
 kind = console
 source = dat:dats/atari5200.dat
 group = atari
+libretro = Atari_-_5200
 
 [system:ATARI7800]
 ss_id = 41
 kind = console
 source = dat:dats/atari7800.dat
 group = atari
+libretro = Atari_-_7800
 
 [system:Jaguar]
 ss_id = 27
 kind = console
 source = dat:dats/jaguar.dat
 group = atari
+libretro = Atari_-_Jaguar
 
 [system:TGFX16]
 ss_id = 31
 kind = console
 source = dat:dats/tgfx16.dat
 group = nec
+libretro = NEC_-_PC_Engine_-_TurboGrafx_16
 
 [system:SuperGrafx]
 ss_id = 105
 kind = console
 source = dat:dats/supergrafx.dat
 group = nec
+libretro = NEC_-_PC_Engine_SuperGrafx
 
 [system:NEOGEO]
 ss_id = 142
@@ -204,96 +233,112 @@ ss_id = 25
 kind = console
 source = dat:dats/ngp.dat
 group = snk
+libretro = SNK_-_Neo_Geo_Pocket
 
 [system:NeoGeoPocket-Color]
 ss_id = 82
 kind = console
 source = dat:dats/ngpc.dat
 group = snk
+libretro = SNK_-_Neo_Geo_Pocket_Color
 
 [system:WonderSwan]
 ss_id = 45
 kind = console
 source = dat:dats/wonderswan.dat
 group = misc
+libretro = Bandai_-_WonderSwan
 
 [system:WonderSwanColor]
 ss_id = 46
 kind = console
 source = dat:dats/wsc.dat
 group = misc
+libretro = Bandai_-_WonderSwan_Color
 
 [system:Coleco]
 ss_id = 48
 kind = console
 source = dat:dats/coleco.dat
 group = misc
+libretro = Coleco_-_ColecoVision
 
 [system:Intellivision]
 ss_id = 115
 kind = console
 source = dat:dats/intellivision.dat
 group = misc
+libretro = Mattel_-_Intellivision
 
 [system:VECTREX]
 ss_id = 102
 kind = console
 source = dat:dats/vectrex.dat
 group = misc
+libretro = GCE_-_Vectrex
 
 [system:ODYSSEY2]
 ss_id = 104
 kind = console
 source = dat:dats/odyssey2.dat
 group = misc
+libretro = Magnavox_-_Odyssey2
 
 [system:MegaCD]
 ss_id = 20
 kind = console
 source = dat:dats/megacd.dat
 group = sega
+libretro = Sega_-_Mega-CD_-_Sega_CD
 
 [system:NeoGeo-CD]
 ss_id = 70
 kind = console
 source = dat:dats/neogeocd.dat
 group = snk
+libretro = SNK_-_Neo_Geo_CD
 
 [system:TGFX16-CD]
 ss_id = 114
 kind = console
 source = dat:dats/tgfx16cd.dat
 group = nec
+libretro = NEC_-_PC_Engine_CD_-_TurboGrafx-CD
 
 [system:Saturn]
 ss_id = 22
 kind = console
 source = dat:dats/saturn.dat
 group = sega
+libretro = Sega_-_Saturn
 
 [system:3DO]
 ss_id = 29
 kind = console
 source = dat:dats/3do.dat
 group = misc
+libretro = The_3DO_Company_-_3DO
 
 [system:CD-i]
 ss_id = 133
 kind = console
 source = dat:dats/cdi.dat
 group = misc
+libretro = Philips_-_CD-i
 
 [system:AmigaCD32]
 ss_id = 130
 kind = console
 source = dat:dats/amigacd32.dat
 group = misc
+libretro = Commodore_-_CD32
 
 [system:PSX]
 ss_id = 57
 kind = console
 source = dat:dats/psx.dat
 group = sony
+libretro = Sony_-_PlayStation
 
 [style:box2d]
 recipe = box-2D>mixrbv2
@@ -305,3 +350,28 @@ quality = 95
 [style:mixrbv2]
 recipe = mixrbv2
 quality = 65
+
+; Screenshot packs: installed next to the boxes, not instead of them, so each
+; has its own folder and db_id (<prefix><system>-<folder>). PNG at native
+; size, never resampled; above one card block an image drops to 256 colours
+; unless its system is listed in 'lossless'. A JPEG source is taken only when
+; no later source of the recipe has a PNG.
+;   ss, sstitle            ScreenScraper media
+;   lr-snaps, lr-titles    libretro-thumbnails folders (needs libretro =)
+[style:snap]
+recipe = ss > lr-snaps
+format = png
+folder = Screenshots
+; SS has no blank template for screenshots, and series discs legitimately
+; share one screen (Aquazone option discs, EPS Series): keep them all
+placeholder_min = 0
+; N64: SS serves 640x480 renders, kept whole on purpose at 2-3 blocks each;
+; Saturn: libretro's filtered 512x384 would lose colours on top of the filter
+lossless = N64, Saturn
+
+[style:title]
+recipe = sstitle > lr-titles
+format = png
+folder = Titles
+placeholder_min = 0
+lossless = N64, Saturn
