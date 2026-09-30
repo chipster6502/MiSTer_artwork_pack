@@ -74,9 +74,9 @@ Two packs of their own, installed alongside whichever box style is chosen:
   is reduced to its native frame; everything else ships as captured. Pixel
   art stays pixel art, and a consumer scales it with nearest neighbour or
   adds a CRT effect at display time.
-- **One card block per image where possible.** A PNG over 128 KB drops to
-  256 colours (`manifest.tsv` marks it), except N64 and Saturn, which stay
-  lossless.
+- **Lossless, every image.** Nothing is recompressed: what a consumer
+  decodes is what the source captured, ready to scale or convert without
+  compounding losses.
 - **Sources:** ScreenScraper first, [libretro-thumbnails](https://github.com/libretro-thumbnails)
   where ScreenScraper has no image or only a JPEG.
 - **Coverage:** `index.tsv` resolves about as many dumps as the box packs
@@ -84,8 +84,9 @@ Two packs of their own, installed alongside whichever box style is chosen:
   the games left without an image are mostly arcade sets ScreenScraper
   holds no capture for.
 
-Each is about 0.8 GB to download; on a card with 128 KB blocks each takes
-about as much room as a box style, because every file costs at least a block.
+Each is about 1.1 GB to download and takes about 3.5 GB on a card with
+128 KB blocks, a little more than a box style: every file costs at least a
+block, and 3D and CD screens often need two or three.
 
 ## Installing
 
@@ -245,14 +246,15 @@ recipe = ss > lr-snaps
 format = png
 folder = Screenshots
 placeholder_min = 0
-lossless = N64, Saturn
+lossless = all
 ```
 
 `folder` gives it its own path and `db_id`; `placeholder_min = 0` keeps
 screens that several games legitimately share (a series of discs), which
-the box check would drop; `lossless` lists the systems exempt from the
-one-block rule. Each system names its libretro-thumbnails repository and,
-where a measured comparison says so, its own source order:
+the box check would drop; `lossless` lists the systems whose images keep
+every colour (`all` here) — any other system would drop an image past one
+card block to 256 colours. Each system names its libretro-thumbnails
+repository and, where a measured comparison says so, its own source order:
 
 ```ini
 [system:Atari2600]

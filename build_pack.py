@@ -130,7 +130,8 @@ class Scope:
             die(f"scope.ini: [style:{self.style_label}] format must be jpg or png")
         if not re.fullmatch(r"[A-Za-z0-9]+", self.folder):
             die(f"scope.ini: [style:{self.style_label}] folder must be one word")
-        # systems whose PNGs keep every colour even past one card block
+        # systems whose PNGs keep every colour even past one card block;
+        # 'all' for every system
         self.lossless_systems = {s.strip() for s in
                                  opts.get("lossless", "").split(",") if s.strip()}
         self.max_px = int(pk.get("max_px", "768"))
@@ -178,6 +179,9 @@ class Scope:
         self.media_rejects = load_media_rejects()
         if not self.systems:
             die("scope.ini: no [system:<Name>] sections found")
+
+    def lossless_for(self, system):
+        return "all" in self.lossless_systems or system in self.lossless_systems
 
     def recipe_for(self, system):
         """The style's recipe, or the system's own order for this style."""
@@ -1505,7 +1509,7 @@ def stage_assemble(scope, only_system=None, prune=False, like=None):
                             # never resampled: native pixels are the point
                             encoding = save_png(
                                 exact_reduce(img), target,
-                                system in scope.lossless_systems)
+                                scope.lossless_for(system))
                         else:
                             w, h = img.size
                             if max(w, h) > scope.max_px:

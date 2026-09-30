@@ -245,7 +245,9 @@ image is `<key>.png`. Two differences a consumer may notice:
 
   `style` is the source: `ss` or `sstitle` (ScreenScraper), `lr-snaps` or
   `lr-titles` ([libretro-thumbnails](https://github.com/libretro-thumbnails)).
-  `encoding` is `lossless` or `256colors`.
+  `encoding` is `lossless` for every image today. The column stays so a
+  build with a size budget can mark images reduced to a 256-colour palette
+  (`256colors`) without changing the layout.
 
 ### Images
 
@@ -257,11 +259,10 @@ PNG at the resolution the source was captured at, **never resampled**:
   ships as 256×224). Axes are never reduced separately, so the aspect a
   1:1 display shows is the capture's own: an Atari 2600 frame stays at
   320×210 with doubled columns.
-- A PNG that fits one 128 KB card block is kept lossless (most 2D systems,
-  a few KB each). Above that it is reduced to a 256-colour palette and
-  marked `256colors`. **N64 and Saturn are exempt** and always lossless:
-  ScreenScraper's N64 captures are 640×480 renders, twice the console's
-  320×240, and libretro's Saturn captures are already filtered.
+- Every image is lossless: a consumer decodes exactly what the source
+  captured. Most 2D screens are a few KB; 3D and CD screens in full colour
+  often need two or three 128 KB card blocks. ScreenScraper's N64 captures
+  are 640×480 renders, twice the console's 320×240.
 
 Show these images with nearest-neighbour or integer scaling. Anything that
 imitates a CRT — scanlines, masks, blur — belongs in the consumer at display

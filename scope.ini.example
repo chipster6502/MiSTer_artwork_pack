@@ -353,9 +353,9 @@ quality = 65
 
 ; Screenshot packs: installed next to the boxes, not instead of them, so each
 ; has its own folder and db_id (<prefix><system>-<folder>). PNG at native
-; size, never resampled; above one card block an image drops to 256 colours
-; unless its system is listed in 'lossless'. A JPEG source is taken only when
-; no later source of the recipe has a PNG.
+; size, never resampled. 'lossless' lists the systems whose images keep every
+; colour; any other system drops an image past one card block to 256 colours.
+; A JPEG source is taken only when no later source of the recipe has a PNG.
 ;   ss, sstitle            ScreenScraper media
 ;   lr-snaps, lr-titles    libretro-thumbnails folders (needs libretro =)
 [style:snap]
@@ -365,13 +365,12 @@ folder = Screenshots
 ; SS has no blank template for screenshots, and series discs legitimately
 ; share one screen (Aquazone option discs, EPS Series): keep them all
 placeholder_min = 0
-; N64: SS serves 640x480 renders, kept whole on purpose at 2-3 blocks each;
-; Saturn: libretro's filtered 512x384 would lose colours on top of the filter
-lossless = N64, Saturn
+; measured: every system lossless costs 7% more card than the 256-colour step
+lossless = all
 
 [style:title]
 recipe = sstitle > lr-titles
 format = png
 folder = Titles
 placeholder_min = 0
-lossless = N64, Saturn
+lossless = all
