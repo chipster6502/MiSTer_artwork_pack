@@ -14,4 +14,4 @@ for SYSTEM in $(grep -oP '^\[system:\K[^\]]+' scope.ini); do
   ./publish.sh "$SYSTEM" "$STYLE"
   python3 build_pack.py verify   --system "$SYSTEM" --style "$STYLE"
 done
-python3 tools/pack_index.py "$STYLE" | tail -5
+python3 tools/pack_index.py | sed -n '/^| Style /,$p'

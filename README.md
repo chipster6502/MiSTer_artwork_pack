@@ -6,15 +6,15 @@ Downloader and selectable from **Update All** (2.10 or newer) under
 once, offline, and served as plain files on the SD card — consumers need no
 network access and no credentials.
 
-**Published today:** 39 systems, 23,658 images, in all three styles —
-2.39 GB in `box2d`, 2.14 GB in `box3d`, 2.04 GB in `mixrbv2`. The three
-serve the same games through the same index, so switching styles is a clean
-replacement. The full list, with a `db_id` and repository per system, is in
-[PACK_FORMAT.md](PACK_FORMAT.md).
-
-**Built, publication pending:** two packs installed *next to* the boxes —
-in-game screenshots (about 22,700 images) and title screens (about 23,400),
-PNG as captured, never resampled. See [Screenshot and title packs](#screenshot-and-title-packs).
+**Published today:** 39 systems in five packs. Three box styles with
+23,658 images each — 2.39 GB in `box2d`, 2.14 GB in `box3d`, 2.04 GB in
+`mixrbv2` — serve the same games through the same index, so switching styles
+is a clean replacement. Next to them go two packs of their own, in-game
+screenshots (22,722 images, 1.16 GB) and title screens (23,381 images,
+1.20 GB), PNG as captured, never resampled; see
+[Screenshot and title packs](#screenshot-and-title-packs). The full list,
+with the repository of each system and what every pack takes on a card, is
+in [PACK_FORMAT.md](PACK_FORMAT.md).
 
 This repository holds the builder. The images themselves live in separate
 `artworkdb-*` repositories, one per hardware family.
@@ -67,8 +67,8 @@ Two packs of their own, installed alongside whichever box style is chosen:
 
 | Pack | Style label | Folder | Images | db_id |
 |---|---|---|---:|---|
-| Screenshots | `snap` | `docs/<System>/Screenshots/` | ~22,700 | `chipster6502/artworkdb-<system>-screenshots` |
-| Titles | `title` | `docs/<System>/Titles/` | ~23,400 | `chipster6502/artworkdb-<system>-titles` |
+| Screenshots | `snap` | `docs/<System>/Screenshots/` | 22,722 | `chipster6502/artworkdb-<system>-screenshots` |
+| Titles | `title` | `docs/<System>/Titles/` | 23,381 | `chipster6502/artworkdb-<system>-titles` |
 
 - **PNG, never resampled.** A capture that is an exact integer enlargement
   is reduced to its native frame; everything else ships as captured. Pixel
@@ -84,15 +84,18 @@ Two packs of their own, installed alongside whichever box style is chosen:
   the games left without an image are mostly arcade sets ScreenScraper
   holds no capture for.
 
-Each is about 1.1 GB to download and takes about 3.5 GB on a card with
-128 KB blocks, a little more than a box style: every file costs at least a
-block, and 3D and CD screens often need two or three.
+Each is about 1.2 GB to download. On the card every file takes whole
+blocks, however small: with 128 KB blocks, the exFAT default on cards over
+32 GB, each pack takes 3.6–3.7 GB, a little more than a box style, because
+3D and CD screens often need two or three blocks; with 32 KB blocks, usual
+on cards of 32 GB or less and on FAT32, it is about 1.7 GB, since most 2D
+screens are a few KB.
 
 ## Installing
 
 ### From Update All (recommended)
 
-Update All 2.10 lists every pack. Run *Update All* from the Scripts menu,
+Update All 2.10 lists every box pack. Run *Update All* from the Scripts menu,
 press **UP** during the countdown to open the settings, and go to
 **Extra Content → Game Artwork DBs**:
 
@@ -105,9 +108,13 @@ press **UP** during the countdown to open the settings, and go to
   `downloader_chipster6502_artworkdb.ini` and the Downloader installs the
   images under `docs/`.
 
-Changing a system's style replaces its images on the next run; deselecting
-it removes them. Consumers do not need to know any of this — they read
-whatever is on the card.
+Changing a system's style replaces its images on the next run.
+Deselecting a system stops its updates but keeps its images on the card. To
+delete them, highlight the system and choose **Uninstall** (**Uninstall
+All** on the *Select All* row), or use **System Options → Database
+Manager** (Update All 2.11), which lists every database the Downloader has
+installed. Consumers do not need to know any of this — they read whatever
+is on the card.
 
 ### By hand
 
@@ -123,8 +130,13 @@ The URL follows one pattern for every system —
 `artworkdb-<group>/db/<system>_<style>.json.zip` — and the group of each
 system is in the table in [PACK_FORMAT.md](PACK_FORMAT.md).
 
-Every file is tagged `docs`, `artwork`, `<system>` and `<system>artwork`, so
-a global filter can narrow things down:
+Removing a section leaves its files on the card. `update.sh --uninstall
+<db_id>` deletes them, keeps any file another database still owns, and
+removes the section.
+
+Every file is tagged `docs`, its folder (`artwork`, `screenshots`,
+`titles`), `<system>` and `<system><folder>`, so a global filter can narrow
+things down:
 
 ```ini
 [mister]
@@ -198,7 +210,7 @@ Around the four stages, in the order they are used:
 | `reject_media.py` | registers a refused media in `media_rejects.tsv` and deletes only the images each style's manifest attributes to it; in a screenshot pack, the next `fetch` then takes the next source |
 | `publish.sh` | pushes one system to its media branch and its database to the `db` branch; refuses if anything outside that system would change |
 | `republish_all.sh` | runs assemble–package–publish–verify for every system in `scope.ini`, stopping at the first failure |
-| `tools/pack_index.py` | prints the *Published systems* table of `PACK_FORMAT.md` from the built databases, so the document is pasted, never typed |
+| `tools/pack_index.py` | prints the *Published systems* tables of `PACK_FORMAT.md` from the built databases — images per system and pack, download and card size per style — so the document is pasted, never typed |
 | `validate_db.py` | parses a generated database with the Downloader's own code |
 | `tools/dup_classify.py` | a measurement, not a step: checks that no two images in a system are the same box, and lists the byte-identical pairs across fiches for review |
 

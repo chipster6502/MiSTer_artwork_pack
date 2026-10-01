@@ -319,54 +319,71 @@ few minutes after a publish.
 
 ### Published systems
 
-`box2d`, as of 4 September 2026. Counts change with every publication; treat
-this as a snapshot, not an interface.
+As of 1 October 2026. Counts change with every publication; treat this as a
+snapshot, not an interface.
 
-| System | Images | db_id | Media base URL |
-|---|---:|---|---|
-| 3DO | 316 | `chipster6502/artworkdb-3do` | https://raw.githubusercontent.com/chipster6502/artworkdb-misc/media-box2d/ |
-| ATARI5200 | 95 | `chipster6502/artworkdb-atari5200` | https://raw.githubusercontent.com/chipster6502/artworkdb-atari/media-box2d/ |
-| ATARI7800 | 66 | `chipster6502/artworkdb-atari7800` | https://raw.githubusercontent.com/chipster6502/artworkdb-atari/media-box2d/ |
-| AmigaCD32 | 149 | `chipster6502/artworkdb-amigacd32` | https://raw.githubusercontent.com/chipster6502/artworkdb-misc/media-box2d/ |
-| Arcade | 4619 | `chipster6502/artworkdb-arcade` | https://raw.githubusercontent.com/chipster6502/artworkdb-arcade/media-box2d/ |
-| Atari2600 | 595 | `chipster6502/artworkdb-atari2600` | https://raw.githubusercontent.com/chipster6502/artworkdb-atari/media-box2d/ |
-| AtariLynx | 88 | `chipster6502/artworkdb-atarilynx` | https://raw.githubusercontent.com/chipster6502/artworkdb-atari/media-box2d/ |
-| CD-i | 160 | `chipster6502/artworkdb-cd-i` | https://raw.githubusercontent.com/chipster6502/artworkdb-misc/media-box2d/ |
-| Coleco | 165 | `chipster6502/artworkdb-coleco` | https://raw.githubusercontent.com/chipster6502/artworkdb-misc/media-box2d/ |
-| FDS | 202 | `chipster6502/artworkdb-fds` | https://raw.githubusercontent.com/chipster6502/artworkdb-nintendo-consoles/media-box2d/ |
-| GAMEBOY | 1035 | `chipster6502/artworkdb-gameboy` | https://raw.githubusercontent.com/chipster6502/artworkdb-nintendo-handhelds/media-box2d/ |
-| GBA | 1634 | `chipster6502/artworkdb-gba` | https://raw.githubusercontent.com/chipster6502/artworkdb-nintendo-handhelds/media-box2d/ |
-| GBC | 958 | `chipster6502/artworkdb-gbc` | https://raw.githubusercontent.com/chipster6502/artworkdb-nintendo-handhelds/media-box2d/ |
-| GameGear | 382 | `chipster6502/artworkdb-gamegear` | https://raw.githubusercontent.com/chipster6502/artworkdb-sega/media-box2d/ |
-| Genesis | 1012 | `chipster6502/artworkdb-genesis` | https://raw.githubusercontent.com/chipster6502/artworkdb-sega/media-box2d/ |
-| Intellivision | 153 | `chipster6502/artworkdb-intellivision` | https://raw.githubusercontent.com/chipster6502/artworkdb-misc/media-box2d/ |
-| Jaguar | 56 | `chipster6502/artworkdb-jaguar` | https://raw.githubusercontent.com/chipster6502/artworkdb-atari/media-box2d/ |
-| MegaCD | 246 | `chipster6502/artworkdb-megacd` | https://raw.githubusercontent.com/chipster6502/artworkdb-sega/media-box2d/ |
-| N64 | 409 | `chipster6502/artworkdb-n64` | https://raw.githubusercontent.com/chipster6502/artworkdb-nintendo-consoles/media-box2d/ |
-| NEOGEO | 171 | `chipster6502/artworkdb-neogeo` | https://raw.githubusercontent.com/chipster6502/artworkdb-snk/media-box2d/ |
-| NES | 1424 | `chipster6502/artworkdb-nes` | https://raw.githubusercontent.com/chipster6502/artworkdb-nintendo-consoles/media-box2d/ |
-| NeoGeo-CD | 97 | `chipster6502/artworkdb-neogeo-cd` | https://raw.githubusercontent.com/chipster6502/artworkdb-snk/media-box2d/ |
-| NeoGeoPocket | 10 | `chipster6502/artworkdb-neogeopocket` | https://raw.githubusercontent.com/chipster6502/artworkdb-snk/media-box2d/ |
-| NeoGeoPocket-Color | 75 | `chipster6502/artworkdb-neogeopocket-color` | https://raw.githubusercontent.com/chipster6502/artworkdb-snk/media-box2d/ |
-| ODYSSEY2 | 83 | `chipster6502/artworkdb-odyssey2` | https://raw.githubusercontent.com/chipster6502/artworkdb-misc/media-box2d/ |
-| PSX | 4867 | `chipster6502/artworkdb-psx` | https://raw.githubusercontent.com/chipster6502/artworkdb-sony/media-box2d/ |
-| S32X | 40 | `chipster6502/artworkdb-s32x` | https://raw.githubusercontent.com/chipster6502/artworkdb-sega/media-box2d/ |
-| SG-1000 | 73 | `chipster6502/artworkdb-sg-1000` | https://raw.githubusercontent.com/chipster6502/artworkdb-sega/media-box2d/ |
-| SMS | 343 | `chipster6502/artworkdb-sms` | https://raw.githubusercontent.com/chipster6502/artworkdb-sega/media-box2d/ |
-| SNES | 1802 | `chipster6502/artworkdb-snes` | https://raw.githubusercontent.com/chipster6502/artworkdb-nintendo-consoles/media-box2d/ |
-| Satellaview | 149 | `chipster6502/artworkdb-satellaview` | https://raw.githubusercontent.com/chipster6502/artworkdb-nintendo-consoles/media-box2d/ |
-| Saturn | 1219 | `chipster6502/artworkdb-saturn` | https://raw.githubusercontent.com/chipster6502/artworkdb-sega/media-box2d/ |
-| SuperGrafx | 5 | `chipster6502/artworkdb-supergrafx` | https://raw.githubusercontent.com/chipster6502/artworkdb-nec/media-box2d/ |
-| TGFX16 | 301 | `chipster6502/artworkdb-tgfx16` | https://raw.githubusercontent.com/chipster6502/artworkdb-nec/media-box2d/ |
-| TGFX16-CD | 396 | `chipster6502/artworkdb-tgfx16-cd` | https://raw.githubusercontent.com/chipster6502/artworkdb-nec/media-box2d/ |
-| VECTREX | 34 | `chipster6502/artworkdb-vectrex` | https://raw.githubusercontent.com/chipster6502/artworkdb-misc/media-box2d/ |
-| VirtualBoy | 27 | `chipster6502/artworkdb-virtualboy` | https://raw.githubusercontent.com/chipster6502/artworkdb-nintendo-consoles/media-box2d/ |
-| WonderSwan | 111 | `chipster6502/artworkdb-wonderswan` | https://raw.githubusercontent.com/chipster6502/artworkdb-misc/media-box2d/ |
-| WonderSwanColor | 91 | `chipster6502/artworkdb-wonderswancolor` | https://raw.githubusercontent.com/chipster6502/artworkdb-misc/media-box2d/ |
+| System | Group | Boxes | Screenshots | Titles |
+|---|---|---:|---:|---:|
+| 3DO | misc | 316 | 291 | 297 |
+| AmigaCD32 | misc | 149 | 149 | 149 |
+| Arcade | arcade | 4,619 | 4,606 | 4,557 |
+| Atari2600 | atari | 595 | 574 | 617 |
+| ATARI5200 | atari | 95 | 95 | 95 |
+| ATARI7800 | atari | 66 | 66 | 66 |
+| AtariLynx | atari | 88 | 88 | 87 |
+| CD-i | misc | 160 | 148 | 140 |
+| Coleco | misc | 165 | 165 | 165 |
+| FDS | nintendo-consoles | 202 | 202 | 202 |
+| GAMEBOY | nintendo-handhelds | 1,035 | 1,033 | 1,051 |
+| GameGear | sega | 382 | 382 | 382 |
+| GBA | nintendo-handhelds | 1,634 | 1,634 | 1,632 |
+| GBC | nintendo-handhelds | 958 | 953 | 958 |
+| Genesis | sega | 1,012 | 1,006 | 1,011 |
+| Intellivision | misc | 153 | 153 | 153 |
+| Jaguar | atari | 56 | 56 | 56 |
+| MegaCD | sega | 246 | 211 | 217 |
+| N64 | nintendo-consoles | 409 | 409 | 408 |
+| NEOGEO | snk | 171 | 171 | 171 |
+| NeoGeo-CD | snk | 97 | 96 | 96 |
+| NeoGeoPocket | snk | 10 | 10 | 10 |
+| NeoGeoPocket-Color | snk | 75 | 75 | 75 |
+| NES | nintendo-consoles | 1,424 | 1,422 | 1,423 |
+| ODYSSEY2 | misc | 83 | 83 | 80 |
+| PSX | sony | 4,867 | 4,143 | 4,763 |
+| S32X | sega | 40 | 40 | 40 |
+| Satellaview | nintendo-consoles | 149 | 149 | 148 |
+| Saturn | sega | 1,219 | 1,153 | 1,165 |
+| SG-1000 | sega | 73 | 73 | 73 |
+| SMS | sega | 343 | 342 | 343 |
+| SNES | nintendo-consoles | 1,802 | 1,800 | 1,800 |
+| SuperGrafx | nec | 5 | 5 | 5 |
+| TGFX16 | nec | 301 | 297 | 298 |
+| TGFX16-CD | nec | 396 | 379 | 385 |
+| VECTREX | misc | 34 | 34 | 34 |
+| VirtualBoy | nintendo-consoles | 27 | 27 | 27 |
+| WonderSwan | misc | 111 | 111 | 111 |
+| WonderSwanColor | misc | 91 | 91 | 91 |
+| **39 systems** | | **23,658** | **22,722** | **23,381** |
 
-**39 systems, 23,658 images, 2.39 GB** in `box2d`, 2.14 GB in `box3d`, 2.04 GB in `mixrbv2`. Append
-`docs/<System>/Artwork/<key>.jpg` to a media base URL to fetch one image;
-swap `media-box2d` for another style branch to get that style.
+*Boxes* counts each of the three box styles, which serve the same keys.
+The group names the repository; with it, the rules above give the `db_id`,
+the database and every image URL of a system in any style.
+
+| Style | Folder | Systems | Images | Download | Card, 32 KB blocks | Card, 128 KB blocks |
+|---|---|---:|---:|---:|---:|---:|
+| `box2d` | `Artwork` | 39 | 23,658 | 2.39 GB | 2.75 GB | 3.24 GB |
+| `box3d` | `Artwork` | 39 | 23,658 | 2.14 GB | 2.54 GB | 3.20 GB |
+| `mixrbv2` | `Artwork` | 39 | 23,658 | 2.04 GB | 2.43 GB | 3.20 GB |
+| `snap` | `Screenshots` | 39 | 22,722 | 1.16 GB | 1.67 GB | 3.58 GB |
+| `title` | `Titles` | 39 | 23,381 | 1.20 GB | 1.72 GB | 3.67 GB |
+
+The card columns are what the files take once installed. Every file takes
+whole blocks however small it is, so a 2D screen of a few KB costs a full
+block. With 32 KB blocks the screenshot and title packs take about two
+thirds of a box style; with 128 KB blocks, the exFAT default on cards over
+32 GB, 10–15% more, because 3D and CD screens often need two or three
+blocks.
+Each pack also carries its own TSV files, about 71 MB per style.
 
 A consumer that walks the systems it finds under `docs/` needs none of this
 table — the folder names on the card are the list. It matters only when
