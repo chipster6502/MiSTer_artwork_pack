@@ -10,8 +10,8 @@ network access and no credentials.
 23,658 images each — 2.39 GB in `box2d`, 2.14 GB in `box3d`, 2.04 GB in
 `mixrbv2` — serve the same games through the same index, so switching styles
 is a clean replacement. Next to them go two packs of their own, in-game
-screenshots (22,722 images, 1.16 GB) and title screens (23,381 images,
-1.20 GB), PNG as captured, never resampled; see
+screenshots (22,657 images, 1.16 GB) and title screens (23,204 images,
+1.19 GB), PNG as captured, never resampled; see
 [Screenshot and title packs](#screenshot-and-title-packs). The full list,
 with the repository of each system and what every pack takes on a card, is
 in [PACK_FORMAT.md](PACK_FORMAT.md).
@@ -67,8 +67,8 @@ Two packs of their own, installed alongside whichever box style is chosen:
 
 | Pack | Style label | Folder | Images | db_id |
 |---|---|---|---:|---|
-| Screenshots | `snap` | `docs/<System>/Screenshots/` | 22,722 | `chipster6502/artworkdb-<system>-screenshots` |
-| Titles | `title` | `docs/<System>/Titles/` | 23,381 | `chipster6502/artworkdb-<system>-titles` |
+| Screenshots | `snap` | `docs/<System>/Screenshots/` | 22,657 | `chipster6502/artworkdb-<system>-screenshots` |
+| Titles | `title` | `docs/<System>/Titles/` | 23,204 | `chipster6502/artworkdb-<system>-titles` |
 
 - **PNG, never resampled.** A capture that is an exact integer enlargement
   is reduced to its native frame; everything else ships as captured. Pixel
@@ -86,7 +86,7 @@ Two packs of their own, installed alongside whichever box style is chosen:
 
 Each is about 1.2 GB to download. On the card every file takes whole
 blocks, however small: with 128 KB blocks, the exFAT default on cards over
-32 GB, each pack takes 3.6–3.7 GB, a little more than a box style, because
+32 GB, each pack takes about 3.6 GB, a little more than a box style, because
 3D and CD screens often need two or three blocks; with 32 KB blocks, usual
 on cards of 32 GB or less and on FAT32, it is about 1.7 GB, since most 2D
 screens are a few KB.

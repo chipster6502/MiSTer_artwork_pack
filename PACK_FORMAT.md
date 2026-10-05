@@ -319,26 +319,26 @@ few minutes after a publish.
 
 ### Published systems
 
-As of 1 October 2026. Counts change with every publication; treat this as a
+As of 5 October 2026. Counts change with every publication; treat this as a
 snapshot, not an interface.
 
 | System | Group | Boxes | Screenshots | Titles |
 |---|---|---:|---:|---:|
-| 3DO | misc | 316 | 291 | 297 |
+| 3DO | misc | 316 | 290 | 297 |
 | AmigaCD32 | misc | 149 | 149 | 149 |
-| Arcade | arcade | 4,619 | 4,606 | 4,557 |
-| Atari2600 | atari | 595 | 574 | 617 |
+| Arcade | arcade | 4,619 | 4,585 | 4,541 |
+| Atari2600 | atari | 595 | 574 | 597 |
 | ATARI5200 | atari | 95 | 95 | 95 |
 | ATARI7800 | atari | 66 | 66 | 66 |
 | AtariLynx | atari | 88 | 88 | 87 |
-| CD-i | misc | 160 | 148 | 140 |
+| CD-i | misc | 160 | 148 | 139 |
 | Coleco | misc | 165 | 165 | 165 |
-| FDS | nintendo-consoles | 202 | 202 | 202 |
-| GAMEBOY | nintendo-handhelds | 1,035 | 1,033 | 1,051 |
+| FDS | nintendo-consoles | 202 | 200 | 200 |
+| GAMEBOY | nintendo-handhelds | 1,035 | 1,031 | 1,050 |
 | GameGear | sega | 382 | 382 | 382 |
-| GBA | nintendo-handhelds | 1,634 | 1,634 | 1,632 |
-| GBC | nintendo-handhelds | 958 | 953 | 958 |
-| Genesis | sega | 1,012 | 1,006 | 1,011 |
+| GBA | nintendo-handhelds | 1,634 | 1,633 | 1,627 |
+| GBC | nintendo-handhelds | 958 | 952 | 958 |
+| Genesis | sega | 1,012 | 1,005 | 1,008 |
 | Intellivision | misc | 153 | 153 | 153 |
 | Jaguar | atari | 56 | 56 | 56 |
 | MegaCD | sega | 246 | 211 | 217 |
@@ -347,15 +347,15 @@ snapshot, not an interface.
 | NeoGeo-CD | snk | 97 | 96 | 96 |
 | NeoGeoPocket | snk | 10 | 10 | 10 |
 | NeoGeoPocket-Color | snk | 75 | 75 | 75 |
-| NES | nintendo-consoles | 1,424 | 1,422 | 1,423 |
-| ODYSSEY2 | misc | 83 | 83 | 80 |
-| PSX | sony | 4,867 | 4,143 | 4,763 |
+| NES | nintendo-consoles | 1,424 | 1,421 | 1,422 |
+| ODYSSEY2 | misc | 83 | 83 | 25 |
+| PSX | sony | 4,867 | 4,135 | 4,730 |
 | S32X | sega | 40 | 40 | 40 |
-| Satellaview | nintendo-consoles | 149 | 149 | 148 |
-| Saturn | sega | 1,219 | 1,153 | 1,165 |
+| Satellaview | nintendo-consoles | 149 | 149 | 144 |
+| Saturn | sega | 1,219 | 1,128 | 1,129 |
 | SG-1000 | sega | 73 | 73 | 73 |
 | SMS | sega | 343 | 342 | 343 |
-| SNES | nintendo-consoles | 1,802 | 1,800 | 1,800 |
+| SNES | nintendo-consoles | 1,802 | 1,798 | 1,800 |
 | SuperGrafx | nec | 5 | 5 | 5 |
 | TGFX16 | nec | 301 | 297 | 298 |
 | TGFX16-CD | nec | 396 | 379 | 385 |
@@ -363,7 +363,7 @@ snapshot, not an interface.
 | VirtualBoy | nintendo-consoles | 27 | 27 | 27 |
 | WonderSwan | misc | 111 | 111 | 111 |
 | WonderSwanColor | misc | 91 | 91 | 91 |
-| **39 systems** | | **23,658** | **22,722** | **23,381** |
+| **39 systems** | | **23,658** | **22,657** | **23,204** |
 
 *Boxes* counts each of the three box styles, which serve the same keys.
 The group names the repository; with it, the rules above give the `db_id`,
@@ -374,8 +374,8 @@ the database and every image URL of a system in any style.
 | `box2d` | `Artwork` | 39 | 23,658 | 2.39 GB | 2.75 GB | 3.24 GB |
 | `box3d` | `Artwork` | 39 | 23,658 | 2.14 GB | 2.54 GB | 3.20 GB |
 | `mixrbv2` | `Artwork` | 39 | 23,658 | 2.04 GB | 2.43 GB | 3.20 GB |
-| `snap` | `Screenshots` | 39 | 22,722 | 1.16 GB | 1.67 GB | 3.58 GB |
-| `title` | `Titles` | 39 | 23,381 | 1.20 GB | 1.72 GB | 3.67 GB |
+| `snap` | `Screenshots` | 39 | 22,657 | 1.16 GB | 1.66 GB | 3.57 GB |
+| `title` | `Titles` | 39 | 23,204 | 1.19 GB | 1.71 GB | 3.64 GB |
 
 The card columns are what the files take once installed. Every file takes
 whole blocks however small it is, so a 2D screen of a few KB costs a full
