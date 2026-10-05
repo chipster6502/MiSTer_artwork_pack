@@ -283,6 +283,9 @@ kind = console
 source = dat:dats/odyssey2.dat
 group = misc
 libretro = Magnavox_-_Odyssey2
+; libretro serves one generic game-select screen as the title of most
+; games; repeated this often it is a placeholder, not a title
+placeholder_min_title = 10
 
 [system:MegaCD]
 ss_id = 20

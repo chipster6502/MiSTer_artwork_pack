@@ -173,15 +173,19 @@ deleting a file forces only that piece to be rebuilt. `--prune` removes
 images whose key left the scope; `--retry-miss` re-queries games previously
 marked as misses, which is how an edited `overrides.tsv` takes effect.
 
-Five reviewed tables refine a build, and together with the DATs they are
+Six reviewed tables refine a build, and together with the DATs they are
 what makes it reproducible: `overrides.tsv` pins the ScreenScraper subsystem
 for a key whose name resolves elsewhere, `names.tsv` fixes a display name
 where ScreenScraper's own is wrong, `rotations.tsv` turns a scan that
 ScreenScraper stores sideways, `excludes.tsv` lists the keys reviewed out of
 the pack — a demo, a hardware test, a box that is not the game's — which
-`identify` never queries again, and `media_rejects.tsv` refuses one media of
+`identify` never queries again, `media_rejects.tsv` refuses one media of
 one game without dropping the key, so a bad mix costs that game its mix and
-nothing else. `neogeo_dat.py` turns the
+nothing else, and `image_aliases.tsv` makes a key share another key's image
+in one pack (`#style system key winner`): the key's file goes and its dumps
+point to the winner in `index.tsv`. That is how a screen reviewed as the same
+picture under two fiches ends up as one file; on its own, the builder merges
+only keys of one fiche whose sources are byte-identical. `neogeo_dat.py` turns the
 Neo Geo core's `romsets.xml` into the Parent/Clone DAT the builder reads.
 
 The screenshot and title packs are built the same way, with `--style snap`
@@ -272,6 +276,17 @@ repository and, where a measured comparison says so, its own source order:
 [system:Atari2600]
 libretro = Atari_-_2600
 recipe_title = lr-titles > sstitle
+```
+
+A system can also turn the placeholder check back on for one style with
+`placeholder_min_<style>`, where its source repeats one generic screen across
+games. For screenshots the check compares pixels after the native reduction,
+so a screen stored doubled in one file and native in another still counts as
+one:
+
+```ini
+[system:ODYSSEY2]
+placeholder_min_title = 10
 ```
 
 ## Credits

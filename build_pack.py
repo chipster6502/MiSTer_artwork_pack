@@ -171,12 +171,19 @@ class Scope:
                                                  if s.strip()]
                             for k, v in cp[section].items()
                             if k.startswith("recipe_") and v.strip()},
+                # placeholder_min_<style>: a system whose source repeats one
+                # generic screen across games, where the style has the check off
+                "placeholder_mins": {k[len("placeholder_min_"):]: int(v)
+                                     for k, v in cp[section].items()
+                                     if k.startswith("placeholder_min_")
+                                     and v.strip()},
             }
         if not self.softname:
             die("scope.ini: [screenscraper] softname is required "
                 "(must match the app name registered on ScreenScraper)")
         self.excludes = load_excludes()
         self.media_rejects = load_media_rejects()
+        self.image_aliases = load_image_aliases()
         if not self.systems:
             die("scope.ini: no [system:<Name>] sections found")
 
@@ -186,6 +193,10 @@ class Scope:
     def recipe_for(self, system):
         """The style's recipe, or the system's own order for this style."""
         return self.systems[system]["recipes"].get(self.style_label, self.recipe)
+
+    def placeholder_min_for(self, system):
+        return self.systems[system]["placeholder_mins"].get(
+            self.style_label, self.placeholder_min)
 
 
 def credentials():
@@ -1139,6 +1150,35 @@ def load_media_rejects(path=Path("media_rejects.tsv")):
     return table
 
 
+def load_image_aliases(path=Path("image_aliases.tsv")):
+    """(style, system, key) -> winner from image_aliases.tsv: keys reviewed
+    as showing the same image as another key, which they then share through
+    index.tsv. unify_siblings only merges keys of one fiche with the same
+    bytes; a visual duplicate across fiches needs a person to see it."""
+    table = {}
+    if not Path(path).is_file():
+        return table
+    for line in Path(path).read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = line.split("\t")
+        if len(parts) >= 4 and parts[3].strip():
+            table[(parts[0], parts[1], parts[2])] = parts[3].strip()
+    return table
+
+
+def resolve_alias(alias_of, key):
+    """The key whose image a key ends up showing, through any chain."""
+    seen = {key}
+    while key in alias_of:
+        key = alias_of[key]
+        if key in seen:
+            break
+        seen.add(key)
+    return key
+
+
 def load_rotations(path=Path("rotations.tsv")):
     """(media, system, key) -> degrees clockwise from rotations.tsv. Some SS
     scans of landscape boxes are stored sideways; turning them here keeps
@@ -1213,7 +1253,12 @@ def find_placeholders(scope, system, threshold):
 
     Counted per distinct SS entry, not per key: a game retitled per region
     forms several keys that legitimately share one box, and counting keys
-    discarded real covers."""
+    discarded real covers.
+
+    Screenshot styles compare pixels after the native reduction: one generic
+    screen reaches the pool as several files (doubled, palette or RGB) that
+    the pack would write as the same image. Keyed by file md5 all the same,
+    which is how callers look a source up."""
     if threshold <= 0:
         return {}
     meta_dir = Path("work/meta") / system
@@ -1224,10 +1269,13 @@ def find_placeholders(scope, system, threshold):
             continue
         for path in pool.iterdir():
             if path.is_file():
-                by_hash.setdefault(md5_file(path), []).append(path.stem)
+                h = (picture_hash(path) if scope.image_ext == "png"
+                     else md5_file(path))
+                by_hash.setdefault(h, []).append(path)
 
     out = {}
-    for h, keys in by_hash.items():
+    for paths in by_hash.values():
+        keys = [p.stem for p in paths]
         if len(keys) < threshold:
             continue
         ids = {ss_game_id(meta_dir, k) for k in keys}
@@ -1235,8 +1283,28 @@ def find_placeholders(scope, system, threshold):
         # unreadable metadata: fall back to the key count
         if ids and len(ids) < threshold:
             continue
-        out[h] = keys
+        for p in paths:
+            out[md5_file(p)] = keys
     return out
+
+
+def picture_hash(path):
+    """md5 of the pixels a PNG pack would write for a source; the file md5
+    when it does not decode, so a broken file still groups with itself."""
+    from PIL import Image
+    try:
+        with Image.open(path) as img:
+            if img.mode in ("RGBA", "LA", "P") or "transparency" in img.info:
+                img = img.convert("RGBA")
+                flat = Image.new("RGB", img.size, (0, 0, 0))
+                flat.paste(img, mask=img.split()[-1])
+                img = flat
+            else:
+                img = img.convert("RGB")
+            img = exact_reduce(img)
+            return hashlib.md5(b"%dx%d:" % img.size + img.tobytes()).hexdigest()
+    except Exception:
+        return md5_file(path)
 
 
 def read_members(meta_dir):
@@ -1416,9 +1484,10 @@ def stage_assemble(scope, only_system=None, prune=False, like=None):
         in_scope = read_members(meta_dir)
         recipe = scope.recipe_for(system)
         pools = {style: pool_index(style, system) for style in recipe}
-        placeholders = find_placeholders(scope, system, scope.placeholder_min)
+        placeholders = find_placeholders(scope, system,
+                                         scope.placeholder_min_for(system))
         if placeholders:
-            total = sum(len(v) for v in placeholders.values())
+            total = len({k for keys in placeholders.values() for k in keys})
             log(f"[assemble] {system}: {len(placeholders)} placeholder "
                 f"image(s) detected, affecting {total} games")
         rows = []
@@ -1431,6 +1500,12 @@ def stage_assemble(scope, only_system=None, prune=False, like=None):
             ref_keys, alias_of, ref_styles, ref_art = reference_pack(like, system)
         else:
             alias_of = unify_siblings(meta_dir, pools, placeholders, in_scope, scope)
+            for (style, sys_name, key), winner in scope.image_aliases.items():
+                if (style == scope.style_label and sys_name == system
+                        and key != winner):
+                    alias_of[key] = winner
+            # a reviewed winner may itself have been unified into a sibling
+            alias_of = {k: resolve_alias(alias_of, k) for k in alias_of}
         for meta_path in sorted(meta_dir.glob("*.json")):
             key = meta_path.stem
             if in_scope is not None and key not in in_scope:
@@ -1451,15 +1526,18 @@ def stage_assemble(scope, only_system=None, prune=False, like=None):
                 syn_rows.setdefault(lang, []).append((key, text))
 
             src = style_used = None
+            dropped = False
             for style in recipe:
                 hit = pools[style].get(key)
                 if hit:
                     if (style, system, key) in scope.media_rejects:
                         refused += 1
+                        dropped = True
                         continue
                     # an empty template is worse than no image at all
                     if md5_file(hit) in placeholders:
                         blanks += 1
+                        dropped = True
                         continue
                     src, style_used = hit, style
                     break
@@ -1475,6 +1553,10 @@ def stage_assemble(scope, only_system=None, prune=False, like=None):
                     src, style_used = ref_art / (key + ".jpg"), ref_styles[key]
                     borrowed.add(key)
             if not src:
+                if dropped:
+                    # an image built before the refusal must not stay
+                    (out_dir / (key + ext)).unlink(missing_ok=True)
+                    manifest.pop((system, key), None)
                 continue
 
             target = out_dir / (key + ext)
@@ -1591,6 +1673,17 @@ def stage_assemble(scope, only_system=None, prune=False, like=None):
                     f"scope ({names}{'...' if len(orphans) > 5 else ''}) "
                     + ("deleted" if prune else
                        "- run with --prune to delete them"))
+
+        # a reviewed alias whose winner has no image leaves its key with none
+        if not like:
+            lost = sorted(k for (st, sy, k) in scope.image_aliases
+                          if st == scope.style_label and sy == system
+                          and k in alias_of
+                          and not (out_dir / (alias_of[k] + ext)).is_file())
+            if lost:
+                log(f"[assemble] {system}: {len(lost)} image_aliases.tsv "
+                    f"key(s) point to a key with no image: {', '.join(lost[:5])}"
+                    + ("..." if len(lost) > 5 else ""))
 
         # every dump (name + crc/size) -> the image actually in the pack
         members_path = meta_dir / "_members.tsv"
