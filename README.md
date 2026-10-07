@@ -10,8 +10,8 @@ network access and no credentials.
 23,658 images each — 2.39 GB in `box2d`, 2.14 GB in `box3d`, 2.04 GB in
 `mixrbv2` — serve the same games through the same index, so switching styles
 is a clean replacement. Next to them go two packs of their own, in-game
-screenshots (22,657 images, 1.16 GB) and title screens (23,204 images,
-1.19 GB), PNG as captured, never resampled; see
+screenshots (22,662 images, 1.14 GB) and title screens (23,204 images,
+1.16 GB), PNG as captured, never resampled; see
 [Screenshot and title packs](#screenshot-and-title-packs). The full list,
 with the repository of each system and what every pack takes on a card, is
 in [PACK_FORMAT.md](PACK_FORMAT.md).
@@ -67,7 +67,7 @@ Two packs of their own, installed alongside whichever box style is chosen:
 
 | Pack | Style label | Folder | Images | db_id |
 |---|---|---|---:|---|
-| Screenshots | `snap` | `docs/<System>/Screenshots/` | 22,657 | `chipster6502/artworkdb-<system>-screenshots` |
+| Screenshots | `snap` | `docs/<System>/Screenshots/` | 22,662 | `chipster6502/artworkdb-<system>-screenshots` |
 | Titles | `title` | `docs/<System>/Titles/` | 23,204 | `chipster6502/artworkdb-<system>-titles` |
 
 - **PNG, never resampled.** A capture that is an exact integer enlargement
@@ -82,11 +82,11 @@ Two packs of their own, installed alongside whichever box style is chosen:
   capture of a 2D picture is an enlargement while libretro's is at native
   size.
 - **Coverage:** `index.tsv` resolves about as many dumps as the box packs
-  (51,123 for screenshots and 50,996 for title screens, against 51,162);
+  (51,081 for screenshots and 50,881 for title screens, against 51,162);
   the games left without an image are mostly arcade sets ScreenScraper
   holds no capture for.
 
-Each is about 1.2 GB to download. On the card every file takes whole
+Each is about 1.15 GB to download. On the card every file takes whole
 blocks, however small: with 128 KB blocks, the exFAT default on cards over
 32 GB, each pack takes about 3.6 GB, a little more than a box style, because
 3D and CD screens often need two or three blocks; with 32 KB blocks, usual

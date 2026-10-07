@@ -329,7 +329,7 @@ few minutes after a publish.
 
 ### Published systems
 
-As of 5 October 2026. Counts change with every publication; treat this as a
+As of 7 October 2026. Counts change with every publication; treat this as a
 snapshot, not an interface.
 
 | System | Group | Boxes | Screenshots | Titles |
@@ -347,7 +347,7 @@ snapshot, not an interface.
 | GAMEBOY | nintendo-handhelds | 1,035 | 1,031 | 1,050 |
 | GameGear | sega | 382 | 382 | 382 |
 | GBA | nintendo-handhelds | 1,634 | 1,633 | 1,627 |
-| GBC | nintendo-handhelds | 958 | 952 | 958 |
+| GBC | nintendo-handhelds | 958 | 957 | 958 |
 | Genesis | sega | 1,012 | 1,005 | 1,008 |
 | Intellivision | misc | 153 | 153 | 153 |
 | Jaguar | atari | 56 | 56 | 56 |
@@ -373,7 +373,7 @@ snapshot, not an interface.
 | VirtualBoy | nintendo-consoles | 27 | 27 | 27 |
 | WonderSwan | misc | 111 | 111 | 111 |
 | WonderSwanColor | misc | 91 | 91 | 91 |
-| **39 systems** | | **23,658** | **22,657** | **23,204** |
+| **39 systems** | | **23,658** | **22,662** | **23,204** |
 
 *Boxes* counts each of the three box styles, which serve the same keys.
 The group names the repository; with it, the rules above give the `db_id`,
@@ -384,8 +384,8 @@ the database and every image URL of a system in any style.
 | `box2d` | `Artwork` | 39 | 23,658 | 2.39 GB | 2.75 GB | 3.24 GB |
 | `box3d` | `Artwork` | 39 | 23,658 | 2.14 GB | 2.54 GB | 3.20 GB |
 | `mixrbv2` | `Artwork` | 39 | 23,658 | 2.04 GB | 2.43 GB | 3.20 GB |
-| `snap` | `Screenshots` | 39 | 22,657 | 1.16 GB | 1.66 GB | 3.57 GB |
-| `title` | `Titles` | 39 | 23,204 | 1.19 GB | 1.71 GB | 3.64 GB |
+| `snap` | `Screenshots` | 39 | 22,662 | 1.14 GB | 1.65 GB | 3.55 GB |
+| `title` | `Titles` | 39 | 23,204 | 1.16 GB | 1.68 GB | 3.62 GB |
 
 The card columns are what the files take once installed. Every file takes
 whole blocks however small it is, so a 2D screen of a few KB costs a full
