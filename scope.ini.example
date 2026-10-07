@@ -51,6 +51,8 @@ db_id_prefix = CHANGE_ME/artworkdb-
 ;                    the screenshot styles (Arcade and NEOGEO have none: that
 ;                    project names MAME sets by description, not by setname)
 ; recipe_<style>:    this system's own source order for one style
+; placeholder_min_<style>, native_max_<style>: this system's own value of
+;                    that style setting; native_max_<style> = off turns it off
 ; ---------------------------------------------------------------------------
 
 [system:SNES]
@@ -127,6 +129,11 @@ kind = console
 source = dat:dats/n64.dat
 group = nintendo-consoles
 libretro = Nintendo_-_Nintendo_64
+; 3D era: ScreenScraper's emulator captures, renders above the console's
+; resolution or frames smoothed without its dithering, were judged better
+; than the native frame and ship as captured
+native_max_snap = off
+native_max_title = off
 
 [system:GAMEBOY]
 ss_id = 9
@@ -276,6 +283,9 @@ kind = console
 source = dat:dats/vectrex.dat
 group = misc
 libretro = GCE_-_Vectrex
+; a vector display has no native raster: every capture is someone's choice
+native_max_snap = off
+native_max_title = off
 
 [system:ODYSSEY2]
 ss_id = 104
@@ -314,6 +324,11 @@ kind = console
 source = dat:dats/saturn.dat
 group = sega
 libretro = Sega_-_Saturn
+; 3D era: ScreenScraper's emulator captures, renders above the console's
+; resolution or frames smoothed without its dithering, were judged better
+; than the native frame and ship as captured
+native_max_snap = off
+native_max_title = off
 
 [system:3DO]
 ss_id = 29
@@ -321,6 +336,11 @@ kind = console
 source = dat:dats/3do.dat
 group = misc
 libretro = The_3DO_Company_-_3DO
+; 3D era: ScreenScraper's emulator captures, renders above the console's
+; resolution or frames smoothed without its dithering, were judged better
+; than the native frame and ship as captured
+native_max_snap = off
+native_max_title = off
 
 [system:CD-i]
 ss_id = 133
@@ -342,6 +362,11 @@ kind = console
 source = dat:dats/psx.dat
 group = sony
 libretro = Sony_-_PlayStation
+; 3D era: ScreenScraper's emulator captures, renders above the console's
+; resolution or frames smoothed without its dithering, were judged better
+; than the native frame and ship as captured
+native_max_snap = off
+native_max_title = off
 
 [style:box2d]
 recipe = box-2D>mixrbv2
@@ -370,6 +395,10 @@ folder = Screenshots
 placeholder_min = 0
 ; measured: every system lossless costs 7% more card than the 256-colour step
 lossless = all
+; past this box a source is an enlargement of the console's picture: a later
+; source within it, once an exact enlargement is undone, wins; without one
+; the enlargement stays
+native_max = 400x300
 
 [style:title]
 recipe = sstitle > lr-titles
@@ -377,3 +406,4 @@ format = png
 folder = Titles
 placeholder_min = 0
 lossless = all
+native_max = 400x300

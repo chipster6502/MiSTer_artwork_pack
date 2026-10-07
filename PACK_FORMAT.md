@@ -261,8 +261,17 @@ PNG at the resolution the source was captured at, **never resampled**:
   320×210 with doubled columns.
 - Every image is lossless: a consumer decodes exactly what the source
   captured. Most 2D screens are a few KB; 3D and CD screens in full colour
-  often need two or three 128 KB card blocks. ScreenScraper's N64 captures
-  are 640×480 renders, twice the console's 320×240.
+  often need two or three 128 KB card blocks.
+- A source larger than the console's picture — past 400×300 once an exact
+  enlargement is undone — is an enlargement, usually filtered. When
+  libretro-thumbnails has the same key within that size, its capture ships
+  instead; otherwise the enlargement does. PlayStation, N64, Saturn and 3DO
+  are exempt by choice: their large captures come from emulators, either
+  renders above the console's resolution (ScreenScraper's N64 captures are
+  640×480, twice the console's 320×240) or PlayStation frames enlarged and
+  smoothed without the console's dithering, and were judged better than
+  the native frame, so they ship as captured. Vectrex is exempt too: a
+  vector display has no native raster.
 
 Show these images with nearest-neighbour or integer scaling. Anything that
 imitates a CRT — scanlines, masks, blur — belongs in the consumer at display
@@ -273,10 +282,11 @@ time, never in the file.
 ScreenScraper first: it covers almost every key and serves the capture of
 the key's own region. [libretro-thumbnails](https://github.com/libretro-thumbnails),
 matched by exact No-Intro/Redump name, fills in where ScreenScraper has no
-image or only a JPEG (a JPEG can never become lossless). Atari 2600 titles
-take libretro first: both sources are filtered upscales there, and
-libretro's are a fraction of the size. Arcade and Neo Geo have no libretro
-source, since that project names MAME sets by description.
+image or only a JPEG (a JPEG can never become lossless), and replaces a
+ScreenScraper enlargement of a 2D picture with a capture at native size.
+Atari 2600 titles take libretro first: both sources are filtered upscales
+there, and libretro's are a fraction of the size. Arcade and Neo Geo have
+no libretro source, since that project names MAME sets by description.
 
 ## Distribution
 

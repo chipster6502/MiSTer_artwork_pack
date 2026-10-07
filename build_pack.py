@@ -139,6 +139,10 @@ class Scope:
         # composites, and a series of discs can share one screen
         self.placeholder_min = int(opts.get("placeholder_min",
                                             pk.get("placeholder_min", "3")))
+        # past this box a source was enlarged by an emulator or an uploader;
+        # a later source within it shows the frame the console did, and wins
+        self.native_max = parse_box(opts.get("native_max", ""),
+                                    f"[style:{self.style_label}] native_max")
         self.url_base = pk.get("url_base", "").rstrip("/")
         self.db_id_prefix = pk.get("db_id_prefix", "").strip()
         # db branch root, same placeholders as url_base; only verify needs it
@@ -177,6 +181,12 @@ class Scope:
                                      for k, v in cp[section].items()
                                      if k.startswith("placeholder_min_")
                                      and v.strip()},
+                # native_max_<style>: a system with modes past the style's box,
+                # or 'off' where no raster is native (vector displays)
+                "native_maxes": {k[len("native_max_"):]:
+                                 parse_box(v, f"[{section}] {k}")
+                                 for k, v in cp[section].items()
+                                 if k.startswith("native_max_") and v.strip()},
             }
         if not self.softname:
             die("scope.ini: [screenscraper] softname is required "
@@ -186,6 +196,12 @@ class Scope:
         self.image_aliases = load_image_aliases()
         if not self.systems:
             die("scope.ini: no [system:<Name>] sections found")
+        # a JPEG box style is resized to max_px anyway; the size of its
+        # source says nothing about native pixels
+        if self.image_ext != "png" and any(
+                self.native_max_for(s) for s in self.systems):
+            die(f"scope.ini: native_max needs a png style, not "
+                f"[style:{self.style_label}]")
 
     def lossless_for(self, system):
         return "all" in self.lossless_systems or system in self.lossless_systems
@@ -197,6 +213,24 @@ class Scope:
     def placeholder_min_for(self, system):
         return self.systems[system]["placeholder_mins"].get(
             self.style_label, self.placeholder_min)
+
+    def native_max_for(self, system):
+        """(width, height) past which a source is not native, or None."""
+        boxes = self.systems[system]["native_maxes"]
+        if self.style_label in boxes:
+            return boxes[self.style_label]
+        return self.native_max
+
+
+def parse_box(value, where):
+    """'400x300' as (400, 300); empty or 'off' as None."""
+    value = value.strip().lower()
+    if value in ("", "off"):
+        return None
+    m = re.fullmatch(r"(\d+)\s*x\s*(\d+)", value)
+    if not m:
+        die(f"scope.ini: {where} must be WIDTHxHEIGHT or off, not '{value}'")
+    return int(m.group(1)), int(m.group(2))
 
 
 def credentials():
@@ -851,6 +885,9 @@ LIBRETRO_SOURCES = {"lr-snaps": "Named_Snaps", "lr-titles": "Named_Titles",
 LIBRETRO_GIT = "https://github.com/libretro-thumbnails/{repo}.git"
 LIBRETRO_RAW = "https://raw.githubusercontent.com/libretro-thumbnails/{repo}/master/{path}"
 LIBRETRO_BAD_CHARS = set('&*/:`<>?\\|"')
+# raw.githubusercontent has no per-account limit like ScreenScraper's; kept
+# low so thousands of requests in a row are not throttled
+LIBRETRO_THREADS = 4
 # a symlink to one of these is another product, not another dump
 LIBRETRO_NOT_SAME = re.compile(r"\((demo|proto|beta|sample|kiosk)", re.IGNORECASE)
 
@@ -948,28 +985,60 @@ def stage_fetch(scope, creds, only_system=None, like=None):
                     return libretro_name(name)
             return None
 
+        box = scope.native_max_for(system)
+
+        def can_try(source, meta_path):
+            """Whether a source may hold a PNG for this key, known without a
+            request; a JPEG never replaces a PNG already pooled."""
+            if source in LIBRETRO_SOURCES:
+                return bool(libretro_stem(source, meta_path.stem))
+            jeu = json.loads(meta_path.read_text(encoding="utf-8"))
+            media = pick_media(jeu.get("medias") or [], source, scope.regions,
+                               key_region(meta_path.stem))
+            return bool(media) and (media.get("format") or "jpg").lower() == "png"
+
         # the reference's unified siblings and dropped placeholders would
         # cost a request each and never reach a pack
         wanted = reference_pack(like, system)[0] if like else None
         cached = unwanted = 0
         pools = {style: pool_index(style, system) for style in recipe}
         todo = []
+        # keys that can only be completed from libretro: no ScreenScraper
+        # request, so no account pacing
+        lr_todo = []
         for meta_path in metas:
             key = meta_path.stem
             if wanted is not None and key not in wanted:
                 unwanted += 1
-            elif any(pools[style].get(key)
+                continue
+            # a refused file stays in the pool; the next source is due
+            held = [i for i, style in enumerate(recipe)
+                    if pools[style].get(key)
+                    and (style, system, key) not in scope.media_rejects]
+            if not held:
+                todo.append((meta_path, 0))
+                continue
+            # an earlier source missing from the pool was tried and failed
+            start = held[0] + 1
+            later = [style for style in recipe[start:]
+                     if not pools[style].get(key)
                      and (style, system, key) not in scope.media_rejects
-                     for style in recipe):
-                # a refused file stays in the pool; the next source is due
-                cached += 1
+                     and box and can_try(style, meta_path)]
+            if later and not any(fits_native(pools[recipe[i]][key], box)
+                                 for i in held):
+                (lr_todo if all(s in LIBRETRO_SOURCES for s in later)
+                 else todo).append((meta_path, start))
             else:
-                todo.append(meta_path)
+                cached += 1
+
+        saved = {}
 
         def save(source, key, ext, body):
             pool = Path("work/pool") / source / system
             pool.mkdir(parents=True, exist_ok=True)
-            (pool / f"{key}.{ext}").write_bytes(body)
+            path = pool / f"{key}.{ext}"
+            path.write_bytes(body)
+            saved[(source, key)] = path
             return "got"
 
         def download(source, key, media):
@@ -1025,13 +1094,20 @@ def stage_fetch(scope, creds, only_system=None, like=None):
                 outcome = download(source, key, again)
             return "got" if outcome == "got" else "none"
 
-        def fetch_one(meta_path):
+        def fetch_one(task):
+            """'got' or 'none' for a key with nothing in the pool; for one
+            whose pooled images are all past the native box, 'native' when a
+            later source has the frame at native size, 'kept' when not."""
+            meta_path, start = task
+            held = start > 0
             key = meta_path.stem
             jeu = json.loads(meta_path.read_text(encoding="utf-8"))
             medias = jeu.get("medias") or []
             lossy = None
-            for source in recipe:
-                if (source, system, key) in scope.media_rejects:
+            got = False
+            for source in recipe[start:]:
+                if ((source, system, key) in scope.media_rejects
+                        or pools[source].get(key)):
                     continue
                 if source in LIBRETRO_SOURCES:
                     stem = libretro_stem(source, key)
@@ -1044,7 +1120,10 @@ def stage_fetch(scope, creds, only_system=None, like=None):
                     except HTTPError:
                         body = None
                     if body:
-                        return save(source, key, "png", body)
+                        save(source, key, "png", body)
+                        if fits_native(saved[(source, key)], box):
+                            return "native" if held else "got"
+                        got = True
                     continue
                 media = pick_media(medias, source, scope.regions,
                                    key_region(key))
@@ -1060,18 +1139,32 @@ def stage_fetch(scope, creds, only_system=None, like=None):
                 # SS lists some media it no longer serves; a screenshot pack
                 # tries its next source, the closed box styles keep their
                 # recipe as built
-                if outcome == "got" or scope.image_ext != "png":
+                if scope.image_ext != "png":
                     return outcome
+                if outcome == "got":
+                    if fits_native(saved[(source, key)], box):
+                        return "native" if held else "got"
+                    got = True
+            if held:
+                return "kept"
+            if got:
+                return "got"
             if lossy:
                 return get_ss(lossy[0], meta_path, jeu, lossy[1])
             return "none"
 
         outcomes = run_parallel(todo, fetch_one, scope.threads, scope.delay,
                                 "downloaded", len(todo))
+        outcomes += run_parallel(lr_todo, fetch_one, LIBRETRO_THREADS, 0,
+                                 "checked in libretro", len(lr_todo))
         got = outcomes.count("got")
         none = outcomes.count("none")
+        native = outcomes.count("native")
+        checked = native + outcomes.count("kept")
 
         log(f"[fetch] {system}: {got} downloaded, {cached} cached, {none} without media"
+            + (f", {native} of {checked} past {box[0]}x{box[1]} found at "
+               "native size in a later source" if checked else "")
             + (f", {unwanted} not in {like}" if like else ""))
 
 
@@ -1294,17 +1387,38 @@ def picture_hash(path):
     from PIL import Image
     try:
         with Image.open(path) as img:
-            if img.mode in ("RGBA", "LA", "P") or "transparency" in img.info:
-                img = img.convert("RGBA")
-                flat = Image.new("RGB", img.size, (0, 0, 0))
-                flat.paste(img, mask=img.split()[-1])
-                img = flat
-            else:
-                img = img.convert("RGB")
-            img = exact_reduce(img)
+            img = exact_reduce(flatten(img))
             return hashlib.md5(b"%dx%d:" % img.size + img.tobytes()).hexdigest()
     except Exception:
         return md5_file(path)
+
+
+def flatten(img):
+    """RGB over black, as a PNG pack writes it."""
+    from PIL import Image
+    if img.mode in ("RGBA", "LA", "P") or "transparency" in img.info:
+        img = img.convert("RGBA")
+        flat = Image.new("RGB", img.size, (0, 0, 0))
+        flat.paste(img, mask=img.split()[-1])
+        return flat
+    return img.convert("RGB")
+
+
+def fits_native(path, box):
+    """Whether a source is within the system's native box once an exact
+    enlargement is undone. A file that does not decode counts as native, so
+    assemble still picks it and drops it from the pool for the next fetch."""
+    from PIL import Image
+    if box is None:
+        return True
+    try:
+        with Image.open(path) as img:
+            w, h = img.size
+            if w > box[0] or h > box[1]:
+                w, h = exact_reduce(flatten(img)).size
+    except Exception:
+        return True
+    return w <= box[0] and h <= box[1]
 
 
 def read_members(meta_dir):
@@ -1483,6 +1597,7 @@ def stage_assemble(scope, only_system=None, prune=False, like=None):
         # keys no longer in _members.tsv left the scope
         in_scope = read_members(meta_dir)
         recipe = scope.recipe_for(system)
+        box = scope.native_max_for(system)
         pools = {style: pool_index(style, system) for style in recipe}
         placeholders = find_placeholders(scope, system,
                                          scope.placeholder_min_for(system))
@@ -1494,6 +1609,7 @@ def stage_assemble(scope, only_system=None, prune=False, like=None):
         syn_rows = {}  # lang -> [(key, text)]
         pack_rows = []  # (key, style, ss_system_id, encoding) for manifest.tsv
         made = skipped = stale = blanks = broken = excluded = refused = 0
+        to_native = 0
         ref_keys = ref_art = None
         borrowed = set()
         if like:
@@ -1527,6 +1643,7 @@ def stage_assemble(scope, only_system=None, prune=False, like=None):
 
             src = style_used = None
             dropped = False
+            enlarged = None
             for style in recipe:
                 hit = pools[style].get(key)
                 if hit:
@@ -1539,8 +1656,15 @@ def stage_assemble(scope, only_system=None, prune=False, like=None):
                         blanks += 1
                         dropped = True
                         continue
+                    if not fits_native(hit, box):
+                        # kept unless a later source is native
+                        enlarged = enlarged or (hit, style)
+                        continue
                     src, style_used = hit, style
                     break
+            native_won = bool(enlarged and src)
+            if enlarged and not src:
+                src, style_used = enlarged
             if key in alias_of:
                 # a stale file from a build before unification must not stay
                 (out_dir / (key + ext)).unlink(missing_ok=True)
@@ -1559,8 +1683,14 @@ def stage_assemble(scope, only_system=None, prune=False, like=None):
                     manifest.pop((system, key), None)
                 continue
 
+            to_native += native_won
             target = out_dir / (key + ext)
-            encoding = (manifest.get((system, key)) or {}).get("encoding", "")
+            built = manifest.get((system, key)) or {}
+            if target.is_file() and built.get("style", style_used) != style_used:
+                # built from another source before a refusal or a native one
+                # took over
+                target.unlink()
+            encoding = built.get("encoding", "")
             if target.is_file():
                 skipped += 1
             elif key in borrowed:
@@ -1709,6 +1839,8 @@ def stage_assemble(scope, only_system=None, prune=False, like=None):
             f"manifest.tsv with {len(pack_rows)} rows"
             + (f", {stale} meta out of scope" if stale else "")
             + (f", {refused} media refused" if refused else "")
+            + (f", {to_native} taken at native size from a later source"
+               if to_native else "")
             + (f", {excluded} excluded" if excluded else "")
             + (f", {len(alias_of)} key(s) unified into a sibling's image"
                if alias_of else "")

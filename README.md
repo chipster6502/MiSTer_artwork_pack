@@ -78,7 +78,9 @@ Two packs of their own, installed alongside whichever box style is chosen:
   decodes is what the source captured, ready to scale or convert without
   compounding losses.
 - **Sources:** ScreenScraper first, [libretro-thumbnails](https://github.com/libretro-thumbnails)
-  where ScreenScraper has no image or only a JPEG.
+  where ScreenScraper has no image or only a JPEG, and where ScreenScraper's
+  capture of a 2D picture is an enlargement while libretro's is at native
+  size.
 - **Coverage:** `index.tsv` resolves about as many dumps as the box packs
   (51,123 for screenshots and 50,996 for title screens, against 51,162);
   the games left without an image are mostly arcade sets ScreenScraper
@@ -150,7 +152,7 @@ Four resumable stages, driven by `scope.ini`:
 | Stage | Does |
 |---|---|
 | `identify` | queries ScreenScraper for each game in scope and caches the reply |
-| `fetch` | downloads the first media in the style recipe that exists, from ScreenScraper or libretro-thumbnails |
+| `fetch` | downloads the first media in the style recipe that exists, from ScreenScraper or libretro-thumbnails, and a later one when that is past `native_max` |
 | `assemble` | normalises images (JPEG boxes, PNG screens), writes the TSVs |
 | `package` | emits `db.json.zip` and the `downloader.ini` section |
 
@@ -287,6 +289,25 @@ one:
 ```ini
 [system:ODYSSEY2]
 placeholder_min_title = 10
+```
+
+`native_max` is the largest picture a screenshot style takes as the
+console's own. A source past it, even after an exact enlargement is undone,
+is an enlargement; when a later source of the recipe fits, that one is
+used, and otherwise the enlargement stays. `fetch` downloads the later
+source for keys whose pooled images are all past the box, and `assemble`
+rebuilds any image whose source changed. A system can set its own box with
+`native_max_<style>`, or turn the rule off: Vectrex has no native raster,
+and the large captures of the 3D consoles, emulator renders or smoothed
+enlargements, were judged better than the native frames:
+
+```ini
+[style:snap]
+native_max = 400x300
+
+[system:N64]
+native_max_snap = off
+native_max_title = off
 ```
 
 ## Credits
